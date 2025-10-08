@@ -1,21 +1,15 @@
-/**
- * Updated PumpFun API - Reads directly from Solana blockchain
- * Replace your current src/lib/pumpfun.ts with this
- */
-
 import axios, { AxiosInstance } from 'axios';
 import { PublicKey, Keypair, VersionedTransaction } from '@solana/web3.js';
-import { connection } from './solana';
+import bs58 from 'bs58';
 import { pumpApiBase, slippageBps } from '../env';
 import { log } from './logger';
+import { connection } from './solana';
 import {
   PumpFunTokenData,
+  PumpPortalResponse,
   PumpFunError,
   ClaimableFeesResponse,
 } from '../types';
-
-// Pump.fun program ID (this is constant)
-const PUMP_PROGRAM_ID = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
 
 class PumpFunAPI {
   private client: AxiosInstance;
@@ -30,70 +24,110 @@ class PumpFunAPI {
     });
   }
 
-  /**
-   * Derive bonding curve PDA from mint address
-   */
-  private async getBondingCurvePDA(mint: PublicKey): Promise<PublicKey> {
-    const [bondingCurve] = await PublicKey.findProgramAddress(
-      [Buffer.from('bonding-curve'), mint.toBuffer()],
-      PUMP_PROGRAM_ID
-    );
-    return bondingCurve;
+  // Get token data from Pump.fun
+  async getTokenData(mint: string): Promise<PumpFunTokenData> {
+    try {
+      log.debug('Fetching token data from Pump.fun', { mint });
+      
+      const response = await this.client.get(`/coins/${mint}`);
+      return response.data;
+    } catch (error) {
+      throw new PumpFunError(
+        `Failed to fetch token data: ${error}`,
+        { mint, error }
+      );
+    }
   }
 
-  /**
-   * Get claimable fees by reading bonding curve account directly
-   */
-  async getClaimableFees(mint: string): Promise<ClaimableFeesResponse> {
+  // Get bonding curve data
+  async getBondingCurveData(mint: string) {
     try {
-      log.monitor('Checking claimable fees from blockchain', { mint });
+      const tokenData = await this.getTokenData(mint);
+      const bondingCurveAddress = tokenData.bondingCurve;
 
-      const mintPubkey = new PublicKey(mint);
-      const bondingCurve = await this.getBondingCurvePDA(mintPubkey);
+      log.debug('Fetching bonding curve data', { bondingCurveAddress });
 
-      // Get bonding curve account data
-      const accountInfo = await connection.getAccountInfo(bondingCurve);
+      const accountInfo = await connection.getAccountInfo(
+        new PublicKey(bondingCurveAddress)
+      );
 
       if (!accountInfo) {
-        log.warn('Bonding curve account not found', { mint });
-        return {
-          claimableFees: 0,
-          timestamp: Date.now(),
-          bondingCurveAddress: bondingCurve.toString(),
-        };
+        throw new PumpFunError('Bonding curve account not found');
       }
 
-      // For Pump.fun, claimable fees = total account balance - rent-exempt minimum
-      const accountBalance = accountInfo.lamports / 1e9; // Convert to SOL
-      const rentExemptMinimum = 0.002; // ~2000 lamports for rent
-      const claimableFees = Math.max(0, accountBalance - rentExemptMinimum);
+      return {
+        address: bondingCurveAddress,
+        data: accountInfo.data,
+        creator: tokenData.creator,
+      };
+    } catch (error) {
+      throw new PumpFunError(
+        `Failed to fetch bonding curve: ${error}`,
+        { mint, error }
+      );
+    }
+  }
 
-      log.monitor('Claimable fees calculated', {
+  // Check claimable creator fees
+  async getClaimableFees(mint: string): Promise<ClaimableFeesResponse> {
+    try {
+      log.monitor('Checking claimable fees', { mint });
+
+      const response = await this.client.get(`/fees/${mint}`);
+
+      const claimableFees = response.data.claimable || 0;
+      const bondingCurveAddress = response.data.bondingCurve || '';
+
+      log.monitor('Claimable fees retrieved', {
         mint,
         claimableFees,
-        accountBalance,
-        bondingCurve: bondingCurve.toString(),
+        bondingCurveAddress,
       });
 
       return {
         claimableFees,
         timestamp: Date.now(),
-        bondingCurveAddress: bondingCurve.toString(),
+        bondingCurveAddress,
       };
     } catch (error) {
-      log.error('Failed to check claimable fees', error);
-      
-      return {
-        claimableFees: 0,
-        timestamp: Date.now(),
-        bondingCurveAddress: '',
-      };
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        log.warn('Fees endpoint not found, using fallback method');
+        return this.getClaimableFeesFromBondingCurve(mint);
+      }
+
+      throw new PumpFunError(
+        `Failed to check claimable fees: ${error}`,
+        { mint, error }
+      );
     }
   }
 
-  /**
-   * Claim creator fees using PumpPortal
-   */
+  // Fallback: Calculate claimable fees from bonding curve
+  private async getClaimableFeesFromBondingCurve(
+    mint: string
+  ): Promise<ClaimableFeesResponse> {
+    try {
+      const bondingCurve = await this.getBondingCurveData(mint);
+      
+      const data = bondingCurve.data;
+      
+      const claimableFeesLamports = data.readBigUInt64LE(32);
+      const claimableFees = Number(claimableFeesLamports) / 1e9;
+
+      return {
+        claimableFees,
+        timestamp: Date.now(),
+        bondingCurveAddress: bondingCurve.address,
+      };
+    } catch (error) {
+      throw new PumpFunError(
+        `Failed to calculate claimable fees: ${error}`,
+        { mint, error }
+      );
+    }
+  }
+
+  // Claim creator fees using PumpPortal trade-local API
   async claimFees(
     mint: string,
     creatorKeypair: Keypair,
@@ -102,7 +136,7 @@ class PumpFunAPI {
     try {
       log.claim('Initiating fee claim', { mint });
 
-      // Build claim transaction via PumpPortal Local API
+      // Use trade-local endpoint for claiming fees
       const response = await fetch('https://pumpportal.fun/api/trade-local', {
         method: 'POST',
         headers: {
@@ -111,15 +145,13 @@ class PumpFunAPI {
         body: JSON.stringify({
           publicKey: creatorKeypair.publicKey.toBase58(),
           action: 'collectCreatorFee',
-          priorityFee: 0.000001, // 0.000001 SOL priority fee
-          // Note: Collects ALL creator fees, no need to specify mint or amount
+          priorityFee: 0.000001,
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         
-        // If no fees to claim
         if (errorText.includes('no fees') || errorText.includes('nothing to claim')) {
           throw new PumpFunError('No creator fees available to claim');
         }
@@ -127,14 +159,11 @@ class PumpFunAPI {
         throw new PumpFunError(`PumpPortal API error: ${response.status} ${errorText}`);
       }
 
-      // Get unsigned transaction as binary
       const transactionBytes = await response.arrayBuffer();
       const transaction = VersionedTransaction.deserialize(new Uint8Array(transactionBytes));
       
-      // Sign transaction
       transaction.sign([creatorKeypair]);
 
-      // Send transaction
       const signature = await connection.sendTransaction(transaction, {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
@@ -142,7 +171,6 @@ class PumpFunAPI {
 
       log.claim('Fee claim transaction sent', { signature, mint });
 
-      // Wait for confirmation
       await connection.confirmTransaction(signature, 'confirmed');
 
       log.claim('Fee claim confirmed', { signature, mint });
@@ -157,7 +185,7 @@ class PumpFunAPI {
   }
 
   /**
-   * Buy tokens using PumpPortal
+   * Buy tokens using PumpPortal trade-local API
    */
   async buyToken(
     mint: string,
@@ -174,25 +202,35 @@ class PumpFunAPI {
         priorityFee,
       });
 
-      // Build buy transaction via PumpPortal
-      const response = await this.client.post('/trade', {
-        publicKey: buyerKeypair.publicKey.toBase58(),
-        action: 'buy',
-        mint,
-        amount: amountSol,
-        denominatedInSol: 'true',
-        slippage,
-        priorityFee: Math.floor(priorityFee * 1e9),
+      // Use trade-local endpoint for buying tokens
+      const response = await fetch('https://pumpportal.fun/api/trade-local', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          publicKey: buyerKeypair.publicKey.toBase58(),
+          action: 'buy',
+          mint,
+          denominatedInSol: 'true',
+          amount: amountSol,
+          slippage,
+          priorityFee,
+        })
       });
 
-      if (!response.data || !response.data.transaction) {
-        throw new PumpFunError('Invalid buy response from PumpPortal');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new PumpFunError(
+          `PumpPortal buy API error: ${response.status} ${errorText}`
+        );
       }
 
-      // Deserialize and sign transaction
-      const txBuffer = Buffer.from(response.data.transaction, 'base64');
-      const transaction = VersionedTransaction.deserialize(txBuffer);
+      // Get unsigned transaction as binary
+      const transactionBytes = await response.arrayBuffer();
+      const transaction = VersionedTransaction.deserialize(new Uint8Array(transactionBytes));
       
+      // Sign transaction
       transaction.sign([buyerKeypair]);
 
       // Send transaction
@@ -228,9 +266,7 @@ class PumpFunAPI {
     }
   }
 
-  /**
-   * Extract tokens purchased from transaction details
-   */
+  // Extract tokens purchased from transaction details
   private extractTokensPurchased(txDetails: any): string {
     try {
       if (!txDetails?.meta?.postTokenBalances) {
@@ -242,57 +278,50 @@ class PumpFunAPI {
 
       for (const postBalance of postBalances) {
         const preBalance = preBalances.find(
-          (b: any) => b.accountIndex === postBalance.accountIndex
+          (pre: any) => pre.accountIndex === postBalance.accountIndex
         );
 
-        if (preBalance) {
-          const change =
-            BigInt(postBalance.uiTokenAmount.amount) -
-            BigInt(preBalance.uiTokenAmount.amount);
+        const preAmount = preBalance?.uiTokenAmount?.uiAmount || 0;
+        const postAmount = postBalance.uiTokenAmount?.uiAmount || 0;
+        const change = postAmount - preAmount;
 
-          if (change > 0) {
-            return change.toString();
-          }
-        } else if (BigInt(postBalance.uiTokenAmount.amount) > 0) {
-          return postBalance.uiTokenAmount.amount;
+        if (change > 0) {
+          return change.toString();
         }
       }
 
       return '0';
     } catch (error) {
-      log.error('Failed to extract tokens purchased', error);
+      log.warn('Failed to extract tokens purchased, returning 0', { error });
       return '0';
     }
   }
 
-  /**
-   * Get token price from bonding curve
-   */
+  // Get current token price from bonding curve
   async getTokenPrice(mint: string): Promise<number> {
     try {
-      const mintPubkey = new PublicKey(mint);
-      const bondingCurve = await this.getBondingCurvePDA(mintPubkey);
-
-      const accountInfo = await connection.getAccountInfo(bondingCurve);
+      const tokenData = await this.getTokenData(mint);
       
-      if (!accountInfo) {
-        throw new PumpFunError('Bonding curve not found');
+      if (!tokenData.bondingCurve) {
+        throw new PumpFunError('Token has no bonding curve');
       }
 
-      const data = accountInfo.data;
-      
-      // Read reserves from bonding curve
-      const virtualSolReserves = Number(data.readBigUInt64LE(40));
-      const virtualTokenReserves = Number(data.readBigUInt64LE(8));
-      
-      if (virtualTokenReserves === 0) {
-        throw new PumpFunError('Invalid bonding curve: zero token reserves');
+      const bondingCurveAccount = await connection.getAccountInfo(
+        new PublicKey(tokenData.bondingCurve)
+      );
+
+      if (!bondingCurveAccount) {
+        throw new PumpFunError('Bonding curve account not found');
       }
 
-      const price = virtualSolReserves / virtualTokenReserves;
-      
+      const data = bondingCurveAccount.data;
+      const virtualSolReserves = data.readBigUInt64LE(8);
+      const virtualTokenReserves = data.readBigUInt64LE(16);
+
+      const price = Number(virtualSolReserves) / Number(virtualTokenReserves);
+
       log.debug('Token price calculated', { mint, price });
-      
+
       return price;
     } catch (error) {
       throw new PumpFunError(
@@ -303,8 +332,5 @@ class PumpFunAPI {
   }
 }
 
-// Export singleton instance
 export const pumpFunAPI = new PumpFunAPI(pumpApiBase);
-
-// Export class for testing
-export { PumpFunAPI };
+export default pumpFunAPI;
