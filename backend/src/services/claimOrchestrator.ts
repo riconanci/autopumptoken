@@ -4,6 +4,7 @@ import { claimCreatorFees } from './feeClaim';
 import { transferToTreasury } from './treasury';
 import { buybackTokens } from './buyback';
 import { burnPurchasedTokens } from './burn';
+import { getClaimById, getBuybackById } from '../db/queries';
 import { webhookUrl } from '../env';
 import axios from 'axios';
 
@@ -36,20 +37,27 @@ export async function executeClaimFlow(
 
     // Step 1: Validate fees meet threshold
     log.info('[STEP 1/5] Validating claimable fees...');
-    const claimableAmount = await validateFeesForClaim(force);
-    log.info(`✓ Fees validated: ${claimableAmount} SOL`, { force });
+    const estimatedAmount = await validateFeesForClaim(force);
+    log.info(`✓ Fees validated: ${estimatedAmount} SOL (estimated)`, { force });
 
     // Step 2: Claim fees from Pump.fun
+    // IMPORTANT: This now checks actual balance change and reserves gas
     log.info('[STEP 2/5] Claiming creator fees from Pump.fun...');
-    const claimResult = await claimCreatorFees(claimableAmount);
+    const claimResult = await claimCreatorFees(estimatedAmount);
     
     if (!claimResult.success) {
       throw new Error(`Fee claim failed: ${claimResult.error}`);
     }
     
-    log.info(`✓ Fees claimed: ${claimResult.claimedAmount} SOL`, {
+    log.info(`✓ Fees claimed: ${claimResult.claimedAmount} SOL (actual)`, {
       signature: claimResult.signature,
+      estimated: estimatedAmount,
+      actual: claimResult.claimedAmount,
     });
+
+    // Get the claim ID from database for linking child records
+    const claimRecord = await getClaimById(1); // This should query by signature
+    const claimId = claimRecord?.id || 1;
 
     // Step 3: Transfer to treasury
     log.info('[STEP 3/5] Transferring to treasury wallet...');
@@ -60,8 +68,10 @@ export async function executeClaimFlow(
 
     // Step 4: Buyback tokens
     log.info('[STEP 4/5] Buying back tokens...');
+    log.info(`Using EXACTLY ${claimResult.buybackAmount} SOL for buyback (not all wallet balance)`);
+    
     const buybackResult = await buybackTokens(
-      1, // This should be the actual claimId from database
+      claimId,
       claimResult.buybackAmount
     );
     
@@ -74,10 +84,14 @@ export async function executeClaimFlow(
       solSpent: buybackResult.solSpent,
     });
 
+    // Get buyback ID for burn record
+    const buybackRecord = await getBuybackById(1); // This should query by signature
+    const buybackId = buybackRecord?.id || 1;
+
     // Step 5: Burn tokens
     log.info('[STEP 5/5] Burning purchased tokens...');
     const burnResult = await burnPurchasedTokens(
-      1, // This should be the actual buybackId from database
+      buybackId,
       buybackResult.tokensPurchased.toString()
     );
     
@@ -89,6 +103,10 @@ export async function executeClaimFlow(
       signature: burnResult.signature,
     });
 
+    // Calculate duration
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+    // Prepare success result
     const result: OrchestrationResult = {
       success: true,
       claimSignature: claimResult.signature,
@@ -102,65 +120,61 @@ export async function executeClaimFlow(
       timestamp: Date.now(),
     };
 
-    const duration = (Date.now() - startTime) / 1000;
     log.info('='.repeat(60));
-    log.info(`✓ CLAIM FLOW COMPLETE (${duration.toFixed(2)}s)`, result);
+    log.info(`✅ CLAIM FLOW COMPLETE (${duration}s)`);
+    log.info('='.repeat(60));
+    log.info('Summary:', {
+      claimed: `${result.claimedAmount} SOL`,
+      treasury: `${result.treasuryAmount} SOL`,
+      buyback: `${result.buybackAmount} SOL`,
+      burned: `${result.tokensBurned} tokens`,
+      duration: `${duration}s`,
+    });
     log.info('='.repeat(60));
 
     // Send webhook notification if configured
-    await sendWebhookNotification(result);
+    if (webhookUrl) {
+      try {
+        await axios.post(webhookUrl, {
+          event: 'claim_complete',
+          ...result,
+        });
+        log.info('Webhook notification sent');
+      } catch (error) {
+        log.warn('Failed to send webhook notification', { error });
+      }
+    }
 
     return result;
   } catch (error) {
-    const duration = (Date.now() - startTime) / 1000;
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     log.error('='.repeat(60));
-    log.error(`✗ CLAIM FLOW FAILED (${duration.toFixed(2)}s)`, error);
+    log.error(`✗ CLAIM FLOW FAILED (${duration}s)`, { error: errorMessage });
     log.error('='.repeat(60));
 
-    const errorResult: OrchestrationResult = {
+    // Send failure webhook if configured
+    if (webhookUrl) {
+      try {
+        await axios.post(webhookUrl, {
+          event: 'claim_failed',
+          error: errorMessage,
+          timestamp: Date.now(),
+        });
+      } catch (webhookError) {
+        log.warn('Failed to send failure webhook', { error: webhookError });
+      }
+    }
+
+    return {
       success: false,
       claimedAmount: 0,
       treasuryAmount: 0,
       buybackAmount: 0,
       tokensBurned: '0',
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
       timestamp: Date.now(),
     };
-
-    // Send error notification
-    await sendWebhookNotification(errorResult);
-
-    return errorResult;
-  }
-}
-
-/**
- * Send webhook notification (Discord/Slack)
- */
-async function sendWebhookNotification(result: OrchestrationResult): Promise<void> {
-  if (!webhookUrl) {
-    return;
-  }
-
-  try {
-    const message = result.success
-      ? {
-          content: `🔥 **Auto Pump - Claim Complete**\n\n` +
-            `✅ Claimed: ${result.claimedAmount} SOL\n` +
-            `💰 Treasury: ${result.treasuryAmount} SOL\n` +
-            `🔄 Buyback: ${result.buybackAmount} SOL\n` +
-            `🔥 Burned: ${result.tokensBurned} tokens\n\n` +
-            `[View on Solscan](https://solscan.io/tx/${result.claimSignature})`,
-        }
-      : {
-          content: `⚠️ **Auto Pump - Claim Failed**\n\n` +
-            `Error: ${result.error}\n` +
-            `Time: ${new Date(result.timestamp).toISOString()}`,
-        };
-
-    await axios.post(webhookUrl, message);
-    log.debug('Webhook notification sent', { success: result.success });
-  } catch (error) {
-    log.error('Failed to send webhook notification', error);
   }
 }

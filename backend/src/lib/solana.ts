@@ -12,8 +12,10 @@ import {
 import {
   getAssociatedTokenAddress,
   createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
   getAccount,
   TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import bs58 from 'bs58';
 import { 
@@ -199,7 +201,15 @@ export async function transferTokens(
   return sendTransaction(transaction, [from]);
 }
 
-// Burn tokens by sending to incinerator
+/**
+ * Burn tokens by sending to incinerator
+ * 
+ * CRITICAL FIX: The incinerator address needs an Associated Token Account (ATA)
+ * for each token type. This function:
+ * 1. Checks if the incinerator's ATA exists
+ * 2. Creates it if needed (one-time ~0.002 SOL cost)
+ * 3. Transfers tokens to permanently lock them
+ */
 export async function burnTokens(
   from: Keypair,
   mint: PublicKey,
@@ -211,9 +221,105 @@ export async function burnTokens(
     from: from.publicKey.toBase58(),
     amount: amount.toString(),
     incinerator: incineratorPubkey.toBase58(),
+    mint: mint.toBase58(),
   });
 
-  return transferTokens(from, incineratorPubkey, mint, amount);
+  try {
+    // Get source ATA (our wallet's token account)
+    const fromAta = await getAssociatedTokenAddress(mint, from.publicKey);
+    
+    // Get destination ATA (incinerator's token account)
+    // allowOwnerOffCurve = true because incinerator is not a normal wallet
+    const toAta = await getAssociatedTokenAddress(
+      mint,
+      incineratorPubkey,
+      true // allowOwnerOffCurve
+    );
+
+    log.burn('Token accounts derived', {
+      fromAta: fromAta.toBase58(),
+      toAta: toAta.toBase58(),
+    });
+
+    // Check if incinerator's ATA exists
+    let needsAta = false;
+    try {
+      const accountInfo = await connection.getAccountInfo(toAta);
+      if (!accountInfo) {
+        needsAta = true;
+        log.burn('Incinerator ATA does not exist, will create it');
+      } else {
+        log.burn('Incinerator ATA already exists');
+      }
+    } catch (error) {
+      needsAta = true;
+      log.burn('Error checking incinerator ATA, will create it', { error });
+    }
+
+    // Build transaction
+    const transaction = new Transaction();
+
+    // Add instruction to create ATA if needed (one-time cost)
+    if (needsAta) {
+      const createAtaIx = createAssociatedTokenAccountInstruction(
+        from.publicKey,        // payer (pays for the account creation)
+        toAta,                 // ata (the account to create)
+        incineratorPubkey,     // owner (incinerator owns the account)
+        mint,                  // mint (token type)
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      transaction.add(createAtaIx);
+      log.burn('Added create ATA instruction (one-time ~0.002 SOL cost)');
+    }
+
+    // Add instruction to transfer tokens to incinerator
+    const transferIx = createTransferInstruction(
+      fromAta,               // source
+      toAta,                 // destination
+      from.publicKey,        // owner
+      amount,                // amount
+      [],                    // multisigners
+      TOKEN_PROGRAM_ID
+    );
+    transaction.add(transferIx);
+
+    // Set transaction properties
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = from.publicKey;
+
+    // Sign and send
+    transaction.sign(from);
+    
+    const signature = await connection.sendRawTransaction(
+      transaction.serialize(),
+      {
+        skipPreflight: false,
+        maxRetries: 3,
+      }
+    );
+
+    log.burn('Burn transaction sent', { signature });
+
+    // Wait for confirmation
+    await connection.confirmTransaction(signature, 'confirmed');
+
+    log.burn('Burn transaction confirmed - tokens permanently locked!', {
+      signature,
+      amount: amount.toString(),
+      explorerUrl: getExplorerUrl(signature),
+    });
+
+    return signature;
+  } catch (error) {
+    log.error('Token burn failed', error, {
+      mint: mint.toBase58(),
+      amount: amount.toString(),
+      incinerator: incineratorPubkey.toBase58(),
+    });
+    throw error;
+  }
 }
 
 // Add priority fee to transaction
