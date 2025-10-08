@@ -23,6 +23,17 @@ let refreshTimer = CONFIG.REFRESH_INTERVAL / 1000;
 let allBurns = [];
 let displayedBurns = CONFIG.DISPLAY?.BURNS_PER_PAGE || 10;
 
+// ✅ NEW: Store previous values to prevent unnecessary animations
+let previousValues = {
+    totalBurned: 0,
+    burnedPercent: 0,
+    solSpent: 0,
+    burned24h: 0,
+    events24h: 0,
+    avgBurn24h: 0,
+    largest24h: 0
+};
+
 // INITIALIZATION
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🔥 Auto Burn Tek Dashboard Initializing...');
@@ -144,10 +155,10 @@ function useMockData() {
     updateShareText(mockStats, mockTransactions);
 }
 
-// UPDATE METRICS
+// ✅ UPDATED: UPDATE METRICS - Only animate if values changed
 function updateMetrics(stats, transactions) {
     const totalBurned = Number(stats.totalTokensBurned || 0);
-    const burnedPercent = ((totalBurned / CONFIG.TOTAL_SUPPLY) * 100).toFixed(2);
+    const burnedPercent = parseFloat(((totalBurned / CONFIG.TOTAL_SUPPLY) * 100).toFixed(2));
     
     // Calculate total SOL spent from actual burn transactions
     const confirmedBurns = transactions.filter(tx => tx.type === 'burn' && tx.status === 'confirmed');
@@ -156,26 +167,59 @@ function updateMetrics(stats, transactions) {
         return sum + Number(solSpent);
     }, 0);
     
-    animateValue('totalBurned', 0, totalBurned, 2000, formatNumber);
-    animateValue('burnedPercent', 0, parseFloat(burnedPercent), 2000, (val) => val.toFixed(2) + '%');
-    animateValue('solSpent', 0, totalSolBurned, 2000, (val) => val.toFixed(4));
+    // ✅ Only update if value changed
+    if (totalBurned !== previousValues.totalBurned) {
+        console.log(`Total Burned changed: ${previousValues.totalBurned} → ${totalBurned}`);
+        animateValue('totalBurned', previousValues.totalBurned, totalBurned, 2000, formatNumber);
+        previousValues.totalBurned = totalBurned;
+    }
+    
+    if (burnedPercent !== previousValues.burnedPercent) {
+        console.log(`Burned Percent changed: ${previousValues.burnedPercent} → ${burnedPercent}`);
+        animateValue('burnedPercent', previousValues.burnedPercent, burnedPercent, 2000, (val) => val.toFixed(2) + '%');
+        previousValues.burnedPercent = burnedPercent;
+    }
+    
+    if (totalSolBurned !== previousValues.solSpent) {
+        console.log(`SOL Spent changed: ${previousValues.solSpent} → ${totalSolBurned}`);
+        animateValue('solSpent', previousValues.solSpent, totalSolBurned, 2000, (val) => val.toFixed(4));
+        previousValues.solSpent = totalSolBurned;
+    }
 }
 
-// UPDATE 24 HOUR STATS
+// ✅ UPDATED: UPDATE 24 HOUR STATS - Only update if values changed
 function update24HourStats(transactions) {
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const burns24h = transactions.filter(tx => {
         return tx.type === 'burn' && tx.status === 'confirmed' && new Date(tx.timestamp).getTime() > oneDayAgo;
     });
+    
     const totalBurned = burns24h.reduce((sum, tx) => sum + Number(tx.amount), 0);
     const burnCount = burns24h.length;
     const avgBurn = burnCount > 0 ? Math.floor(totalBurned / burnCount) : 0;
     const largestBurn = burnCount > 0 ? Math.max(...burns24h.map(tx => Number(tx.amount))) : 0;
-    document.getElementById('burned24h').textContent = formatNumber(totalBurned);
-    document.getElementById('events24h').textContent = burnCount;
-    document.getElementById('avgBurn24h').textContent = formatNumber(avgBurn);
-    document.getElementById('largest24h').textContent = formatNumber(largestBurn);
+    
+    // ✅ Only update if value changed
+    if (totalBurned !== previousValues.burned24h) {
+        document.getElementById('burned24h').textContent = formatNumber(totalBurned);
+        previousValues.burned24h = totalBurned;
+    }
+    
+    if (burnCount !== previousValues.events24h) {
+        document.getElementById('events24h').textContent = burnCount;
+        previousValues.events24h = burnCount;
+    }
+    
+    if (avgBurn !== previousValues.avgBurn24h) {
+        document.getElementById('avgBurn24h').textContent = formatNumber(avgBurn);
+        previousValues.avgBurn24h = avgBurn;
+    }
+    
+    if (largestBurn !== previousValues.largest24h) {
+        document.getElementById('largest24h').textContent = formatNumber(largestBurn);
+        previousValues.largest24h = largestBurn;
+    }
 }
 
 // CHART INITIALIZATION
@@ -380,10 +424,17 @@ function getTimeAgo(timestamp) {
     const now = Date.now();
     const then = new Date(timestamp).getTime();
     const diffMs = now - then;
+    
+    // ✅ ADD THIS: Handle future timestamps (server clock ahead of browser)
+    if (diffMs < 0) {
+        return 'Just now';
+    }
+    // ✅ END OF NEW CODE
+    
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    if (diffMins < 1) return 'Just now';
+    if (diffMins < 5) return 'Just now';
     if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
@@ -392,6 +443,13 @@ function getTimeAgo(timestamp) {
 function animateValue(id, start, end, duration, formatter = (val) => Math.floor(val)) {
     const element = document.getElementById(id);
     if (!element) return;
+    
+    // ✅ If values are the same, don't animate
+    if (start === end) {
+        element.textContent = formatter(end);
+        return;
+    }
+    
     const startTime = performance.now();
     function update(currentTime) {
         const elapsed = currentTime - startTime;

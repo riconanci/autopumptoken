@@ -6,7 +6,7 @@ const SITE_CONFIG = {
     TOKEN_MINT: '9AV236iTUAhkJz2vwjKW8rCTsgH7TDNU9CiY67M4pump',
     TOKEN_SYMBOL: 'ABT',
     TOKEN_NAME: 'Auto Burn Tek',
-    TOTAL_SUPPLY: 10000000,
+    TOTAL_SUPPLY: 1000000000,
     
     // API Configuration
     API_BASE: 'http://localhost:3000/api',
