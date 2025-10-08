@@ -63,6 +63,7 @@ class PumpFunAPI {
    * @param mint - Token mint address
    * @returns ClaimableFeesResponse with fees in SOL
    */
+
   async getClaimableFees(mint: string): Promise<ClaimableFeesResponse> {
     try {
       log.monitor('Checking claimable fees from blockchain', { mint });
@@ -90,23 +91,22 @@ class PumpFunAPI {
       const data = accountInfo.data;
       const accountBalance = accountInfo.lamports / 1e9;
 
-      // CRITICAL: Read UNCLAIMED fees from offset 88, not offset 32!
-      const unclaimedFeesLamports = data.readBigUInt64LE(88);
-      const claimableFees = Number(unclaimedFeesLamports) / 1e9;
+      // Read Real SOL Reserves from offset 24
+      const realSolReservesLamports = data.readBigUInt64LE(24);
+      const realSolReserves = Number(realSolReservesLamports) / 1e9;
 
-      // Also read offset 32 for comparison/debugging
-      // This shows total lifetime fees or liquidity (not what we want!)
-      const offset32Value = Number(data.readBigUInt64LE(32)) / 1e9;
+      // Calculate claimable fees = account balance - reserves
+      const claimableFees = Math.max(0, accountBalance - realSolReserves);
+      const unclaimedFeesLamports = Math.floor(claimableFees * 1e9);
 
       log.monitor('Claimable fees calculated', {
         mint,
-        claimableFees: claimableFees,
-        unclaimedFeesLamports: unclaimedFeesLamports.toString(),
-        offset88: claimableFees, // What we return (unclaimed)
-        offset32: offset32Value, // For debugging (total/liquidity)
         accountBalance,
+        realSolReserves,
+        claimableFees,
+        unclaimedFeesLamports: unclaimedFeesLamports.toString(),
         bondingCurve: bondingCurve.toString(),
-        note: 'Using offset 88 for unclaimed fees (matches Pump.fun dashboard)',
+        note: 'Claimable = Account Balance - Real Reserves',
       });
 
       return {

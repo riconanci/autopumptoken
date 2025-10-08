@@ -4,6 +4,7 @@ import { log } from '../lib/logger';
 import { creatorWalletSecret, tokenMint, slippageBps } from '../env';
 import { insertBuyback, updateBuybackStatus } from '../db/queries';
 import { BuybackResult } from '../types';
+import { connection } from '../lib/solana';
 
 /**
  * Buy tokens from Pump.fun bonding curve
@@ -23,6 +24,9 @@ export async function buybackTokens(
       slippage: slippageBps,
     });
 
+    // Get balance BEFORE buyback
+    const balanceBefore = await connection.getBalance(creatorKeypair.publicKey);
+
     // Buy tokens via PumpPortal
     const { signature, tokensPurchased } = await pumpFunAPI.buyToken(
       tokenMint,
@@ -31,21 +35,31 @@ export async function buybackTokens(
       slippageBps
     );
 
+    // Wait for transaction to finalize
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Get balance AFTER buyback
+    const balanceAfter = await connection.getBalance(creatorKeypair.publicKey);
+
+    // Calculate ACTUAL SOL spent (includes transaction fees)
+    const actualSolSpent = (balanceBefore - balanceAfter) / 1e9;
+
     const explorerUrl = getExplorerUrl(signature);
 
     log.buyback('Buyback transaction confirmed', {
       signature,
       tokensPurchased,
-      amountSol,
+      requestedAmount: amountSol,
+      actualSpent: actualSolSpent,
       explorerUrl,
     });
 
-    // Record buyback in database
+    // Record buyback in database with ACTUAL amount spent
     buybackId = await insertBuyback(
       claimId,
       signature,
       tokensPurchased,
-      solToLamports(amountSol)
+      solToLamports(actualSolSpent)  // ← Use actual spent, not requested
     );
 
     // Update status to confirmed
@@ -55,7 +69,7 @@ export async function buybackTokens(
       success: true,
       signature,
       tokensPurchased: Number(tokensPurchased),
-      solSpent: amountSol,
+      solSpent: actualSolSpent,  // ← Return actual spent
       timestamp: Date.now(),
     };
 

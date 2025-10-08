@@ -298,19 +298,29 @@ export async function getSystemStats(): Promise<SystemStats> {
 
 export async function getTransactionHistory(limit: number = 50): Promise<TransactionHistoryItem[]> {
   const query = `
-    SELECT type, signature, amount, timestamp, status
-    FROM recent_activity
+    SELECT 
+      'burn' as type,
+      b.signature,
+      b.tokens_burned as amount,
+      b.timestamp,
+      b.status,
+      bb.sol_spent
+    FROM burns b
+    LEFT JOIN buybacks bb ON b.buyback_id = bb.id
+    WHERE b.status = 'confirmed'
+    ORDER BY b.timestamp DESC
     LIMIT $1
   `;
 
   const result = await pool.query(query, [limit]);
 
   return result.rows.map((row) => ({
-    type: row.type,
+    type: 'burn',
     signature: row.signature,
-    amount: row.type === 'burn' ? row.amount.toString() : Number(row.amount) / 1e9,
+    amount: row.amount.toString(),
     timestamp: new Date(row.timestamp).getTime(),
     status: row.status,
+    sol_spent: row.sol_spent ? Number(row.sol_spent) / 1e9 : 0, // ← Send raw number, NOT formatted string
     explorerUrl: `https://solscan.io/tx/${row.signature}`,
   }));
 }
