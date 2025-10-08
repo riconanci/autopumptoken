@@ -23,6 +23,7 @@ export interface ClaimResult {
 export interface BuybackResult {
   success: boolean;
   signature?: string;
+  buybackId?: number; // ✅ ADDED: Database ID for linking burn records
   tokensPurchased: number; // in token units
   solSpent: number;
   error?: string;
@@ -147,6 +148,7 @@ export interface TransactionHistoryItem {
   amount: number | string;
   timestamp: number;
   status: 'pending' | 'confirmed' | 'failed';
+  sol_spent?: number; // ✅ ADDED: For displaying SOL used in burn feed
   explorerUrl: string;
 }
 

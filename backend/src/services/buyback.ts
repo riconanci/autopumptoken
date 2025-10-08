@@ -8,6 +8,11 @@ import { connection } from '../lib/solana';
 
 /**
  * Buy tokens from Pump.fun bonding curve
+ * 
+ * This function:
+ * 1. Buys tokens with the specified SOL amount
+ * 2. Records the buyback in the database
+ * 3. Returns the database ID for linking to burn records
  */
 export async function buybackTokens(
   claimId: number,
@@ -59,7 +64,7 @@ export async function buybackTokens(
       claimId,
       signature,
       tokensPurchased,
-      solToLamports(actualSolSpent)  // ← Use actual spent, not requested
+      solToLamports(actualSolSpent)  // Use actual spent, not requested
     );
 
     // Update status to confirmed
@@ -68,8 +73,9 @@ export async function buybackTokens(
     const result: BuybackResult = {
       success: true,
       signature,
+      buybackId,  // ✅ CRITICAL: Return database ID for burn record linking
       tokensPurchased: Number(tokensPurchased),
-      solSpent: actualSolSpent,  // ← Return actual spent
+      solSpent: actualSolSpent,  // Return actual spent
       timestamp: Date.now(),
     };
 

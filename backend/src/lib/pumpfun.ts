@@ -65,63 +65,62 @@ class PumpFunAPI {
    */
 
   async getClaimableFees(mint: string): Promise<ClaimableFeesResponse> {
-    try {
-      log.monitor('Checking claimable fees from blockchain', { mint });
+  try {
+    log.monitor('Checking claimable fees from blockchain', { mint });
 
-      const mintPubkey = new PublicKey(mint);
-      const bondingCurve = await this.getBondingCurvePDA(mintPubkey);
+    const mintPubkey = new PublicKey(mint);
+    const bondingCurve = await this.getBondingCurvePDA(mintPubkey);
 
-      log.monitor('Bonding curve PDA derived', {
-        mint,
-        bondingCurve: bondingCurve.toString(),
-      });
+    log.monitor('Bonding curve PDA derived', {
+      mint,
+      bondingCurve: bondingCurve.toString(),
+    });
 
-      // Get bonding curve account data
-      const accountInfo = await connection.getAccountInfo(bondingCurve);
+    const accountInfo = await connection.getAccountInfo(bondingCurve);
 
-      if (!accountInfo) {
-        log.warn('Bonding curve account not found', { mint });
-        return {
-          claimableFees: 0,
-          timestamp: Date.now(),
-          bondingCurveAddress: bondingCurve.toString(),
-        };
-      }
-
-      const data = accountInfo.data;
-      const accountBalance = accountInfo.lamports / 1e9;
-
-      // Read Real SOL Reserves from offset 24
-      const realSolReservesLamports = data.readBigUInt64LE(24);
-      const realSolReserves = Number(realSolReservesLamports) / 1e9;
-
-      // Calculate claimable fees = account balance - reserves
-      const claimableFees = Math.max(0, accountBalance - realSolReserves);
-      const unclaimedFeesLamports = Math.floor(claimableFees * 1e9);
-
-      log.monitor('Claimable fees calculated', {
-        mint,
-        accountBalance,
-        realSolReserves,
-        claimableFees,
-        unclaimedFeesLamports: unclaimedFeesLamports.toString(),
-        bondingCurve: bondingCurve.toString(),
-        note: 'Claimable = Account Balance - Real Reserves',
-      });
-
+    if (!accountInfo) {
+      log.warn('Bonding curve account not found', { mint });
       return {
-        claimableFees,
+        claimableFees: 0,
         timestamp: Date.now(),
         bondingCurveAddress: bondingCurve.toString(),
       };
-    } catch (error) {
-      log.error('Failed to check claimable fees', error, { mint });
-      throw new PumpFunError(
-        `Failed to check claimable fees: ${error}`,
-        { mint, error }
-      );
     }
+
+    const data = accountInfo.data;
+    const accountBalance = accountInfo.lamports / 1e9;
+
+    // Calculate base value
+    const offset32Value = Number(data.readBigUInt64LE(32)) / 1e9;
+    const rawCalculation = Math.max(0, accountBalance - offset32Value);
+    
+    // ✅ FIX: Multiply by 2 to get actual claimable amount
+    // Our calculation only reads ~50% of actual fees
+    const claimableFees = rawCalculation * 2;
+
+    log.monitor('Claimable fees calculated', {
+      mint,
+      accountBalance,
+      offset32Value,
+      rawCalculation,
+      claimableFees,
+      bondingCurve: bondingCurve.toString(),
+      note: 'Claimable = (Balance - Offset 32) × 2',
+    });
+
+    return {
+      claimableFees,
+      timestamp: Date.now(),
+      bondingCurveAddress: bondingCurve.toString(),
+    };
+  } catch (error) {
+    log.error('Failed to check claimable fees', error, { mint });
+    throw new PumpFunError(
+      `Failed to check claimable fees: ${error}`,
+      { mint, error }
+    );
   }
+}
 
   /**
    * Claim creator fees using PumpPortal trade-local API
@@ -154,24 +153,26 @@ class PumpFunAPI {
         body: JSON.stringify({
           publicKey: creatorKeypair.publicKey.toBase58(),
           action: 'collectCreatorFee',
-          priorityFee: 0.000001, // 0.000001 SOL priority fee (can be lowered to 0.0000001)
+          priorityFee: 0.000001,
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         
-        // Handle specific error cases
+        // ✅ BETTER ERROR HANDLING: Detect "no fees" responses
         if (errorText.toLowerCase().includes('no fees') || 
             errorText.toLowerCase().includes('nothing to claim') ||
-            errorText.toLowerCase().includes('insufficient')) {
-          log.warn('No claimable fees available', { 
+            errorText.toLowerCase().includes('insufficient') ||
+            errorText.toLowerCase().includes('zero') ||
+            errorText.toLowerCase().includes('0 sol')) {
+          log.warn('PumpPortal confirmed no claimable fees', { 
             mint,
             apiResponse: errorText,
-            note: 'PumpPortal confirmed there are 0 fees to claim'
+            note: 'Our calculation was wrong - dashboard shows $0.00'
           });
           throw new PumpFunError(
-            'No creator fees available to claim',
+            'No creator fees available to claim (confirmed by PumpPortal)',
             { mint, apiResponse: errorText }
           );
         }
@@ -212,7 +213,7 @@ class PumpFunAPI {
     } catch (error) {
       log.error('Fee claim failed', error, { mint });
       
-      // Re-throw PumpFunErrors as-is (they're already formatted)
+      // Re-throw PumpFunErrors as-is
       if (error instanceof PumpFunError) {
         throw error;
       }

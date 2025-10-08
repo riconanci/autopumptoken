@@ -69,43 +69,51 @@ export async function claimCreatorFees(
     // Calculate ACTUAL claimed amount from balance change
     const claimedAmount = solAfter - solBefore;
 
-    if (claimedAmount <= 0) {
-      throw new Error(`No SOL received from claim. Balance change: ${claimedAmount}`);
-    }
+// ✅ SAFETY CHECK: Must receive at least 0.001 SOL to continue
+// This prevents wasting gas on claims when there are no actual fees
+  if (claimedAmount < 0.001) {
+    const gasCost = Math.abs(claimedAmount);
+    throw new Error(
+      `No meaningful fees received from claim. ` +
+      `Balance change: ${claimedAmount.toFixed(9)} SOL. ` +
+      `This indicates there were no actual fees to claim (dashboard likely shows $0.00). ` +
+      `Gas wasted: ${gasCost.toFixed(9)} SOL`
+    );
+  }
 
-    log.claim('Actual claimed amount determined', {
-      estimatedAmount,
-      actualAmount: claimedAmount,
-      difference: claimedAmount - (estimatedAmount || 0),
+  log.claim('Actual claimed amount determined', {
+    estimatedAmount,
+    actualAmount: claimedAmount,
+    difference: claimedAmount - (estimatedAmount || 0),
+  });
+
+  // Calculate splits from FULL claimed amount
+  let treasuryAmount = (claimedAmount * treasuryPercent) / 100;
+  let buybackAmount = (claimedAmount * buybackPercent) / 100;
+
+  // Safety check: Verify wallet will maintain minimum balance after transfers
+  const totalToSend = treasuryAmount + buybackAmount;
+  const willRemain = solAfter - totalToSend;
+
+  if (willRemain < MIN_WALLET_BALANCE_SOL) {
+    log.warn('Wallet would drop below minimum balance, adjusting amounts', {
+      currentBalance: solAfter,
+      wouldSend: totalToSend,
+      wouldRemain: willRemain,
+      minRequired: MIN_WALLET_BALANCE_SOL,
     });
 
-    // Calculate splits from FULL claimed amount
-    let treasuryAmount = (claimedAmount * treasuryPercent) / 100;
-    let buybackAmount = (claimedAmount * buybackPercent) / 100;
+    // Adjust: Keep minimum balance, split the rest
+    const availableToSend = Math.max(0, solAfter - MIN_WALLET_BALANCE_SOL);
+    treasuryAmount = (availableToSend * treasuryPercent) / 100;
+    buybackAmount = (availableToSend * buybackPercent) / 100;
 
-    // Safety check: Verify wallet will maintain minimum balance after transfers
-    const totalToSend = treasuryAmount + buybackAmount;
-    const willRemain = solAfter - totalToSend;
-
-    if (willRemain < MIN_WALLET_BALANCE_SOL) {
-      log.warn('Wallet would drop below minimum balance, adjusting amounts', {
-        currentBalance: solAfter,
-        wouldSend: totalToSend,
-        wouldRemain: willRemain,
-        minRequired: MIN_WALLET_BALANCE_SOL,
-      });
-
-      // Adjust: Keep minimum balance, split the rest
-      const availableToSend = Math.max(0, solAfter - MIN_WALLET_BALANCE_SOL);
-      treasuryAmount = (availableToSend * treasuryPercent) / 100;
-      buybackAmount = (availableToSend * buybackPercent) / 100;
-
-      log.claim('Amounts adjusted to maintain minimum balance', {
-        adjustedTreasury: treasuryAmount,
-        adjustedBuyback: buybackAmount,
-        willNowRemain: solAfter - treasuryAmount - buybackAmount,
-      });
-    }
+    log.claim('Amounts adjusted to maintain minimum balance', {
+      adjustedTreasury: treasuryAmount,
+      adjustedBuyback: buybackAmount,
+      willNowRemain: solAfter - treasuryAmount - buybackAmount,
+    });
+  }
 
     log.claim('Split calculation (from full claimed amount)', {
       claimedAmount,

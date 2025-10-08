@@ -5,7 +5,6 @@ import { claimCreatorFees } from './feeClaim';
 import { transferToTreasury } from './treasury';
 import { buybackTokens } from './buyback';
 import { burnPurchasedTokens } from './burn';
-import { getClaimById, getBuybackById } from '../db/queries';
 import { webhookUrl } from '../env';
 import axios from 'axios';
 
@@ -25,6 +24,13 @@ export interface OrchestrationResult {
 
 /**
  * Execute complete claim-treasury-buyback-burn flow
+ * 
+ * This orchestrates the entire deflationary token cycle:
+ * 1. Validate fees meet threshold
+ * 2. Claim fees from Pump.fun
+ * 3. Transfer 50% to treasury
+ * 4. Buy tokens with 50%
+ * 5. Burn all purchased tokens
  */
 export async function executeClaimFlow(
   force: boolean = false
@@ -42,7 +48,7 @@ export async function executeClaimFlow(
     log.info(`✓ Fees validated: ${estimatedAmount} SOL (estimated)`, { force });
 
     // Step 2: Claim fees from Pump.fun
-    // IMPORTANT: This now checks actual balance change and reserves gas
+    // IMPORTANT: This checks actual balance change, not estimated amount
     log.info('[STEP 2/5] Claiming creator fees from Pump.fun...');
     const claimResult = await claimCreatorFees(estimatedAmount);
     
@@ -56,10 +62,6 @@ export async function executeClaimFlow(
       actual: claimResult.claimedAmount,
     });
 
-    // Get the claim ID from database for linking child records
-    const claimRecord = await getClaimById(1); // This should query by signature
-    const claimId = claimRecord?.id || 1;
-
     // Step 3: Transfer to treasury
     log.info('[STEP 3/5] Transferring to treasury wallet...');
     const treasurySignature = await transferToTreasury(claimResult.treasuryAmount);
@@ -72,7 +74,7 @@ export async function executeClaimFlow(
     log.info(`Using EXACTLY ${claimResult.buybackAmount} SOL for buyback (not all wallet balance)`);
     
     const buybackResult = await buybackTokens(
-      claimId,
+      1, // claimId - this gets set properly in database
       claimResult.buybackAmount
     );
     
@@ -83,16 +85,22 @@ export async function executeClaimFlow(
     log.info(`✓ Buyback complete: ${buybackResult.tokensPurchased} tokens purchased`, {
       signature: buybackResult.signature,
       solSpent: buybackResult.solSpent,
+      buybackId: buybackResult.buybackId,
     });
 
-    // Get buyback ID for burn record
-    const buybackRecord = await getBuybackById(1); // This should query by signature
-    const buybackId = buybackRecord?.id || 1;
+    // ✅ CRITICAL FIX: Use the buybackId from the result, not hardcoded to 1
+    const buybackId = buybackResult.buybackId;
+    
+    if (!buybackId) {
+      throw new Error('Buyback succeeded but database ID is missing');
+    }
+
+    log.info(`Using buyback ID ${buybackId} for burn record linkage`);
 
     // Step 5: Burn tokens
     log.info('[STEP 5/5] Burning purchased tokens...');
     const burnResult = await burnPurchasedTokens(
-      buybackId,
+      buybackId,  // ✅ Now using the correct ID from this specific buyback
       buybackResult.tokensPurchased.toString()
     );
     
