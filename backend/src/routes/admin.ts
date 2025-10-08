@@ -9,7 +9,7 @@ import { getSystemStatus } from '../db/queries';
 import { checkConnection } from '../lib/solana';
 import { adminApiKey } from '../env';
 import { log } from '../lib/logger';
-import { ApiResponse, AdminControlRequest } from '../../../src/types';
+import { ApiResponse, AdminControlRequest } from '../types';
 
 const router = Router();
 

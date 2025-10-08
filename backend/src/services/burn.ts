@@ -3,7 +3,7 @@ import { burnTokens, keypairFromSecret, getExplorerUrl } from '../lib/solana';
 import { log } from '../lib/logger';
 import { creatorWalletSecret, tokenMint, burnAddress } from '../env';
 import { insertBurn, updateBurnStatus } from '../db/queries';
-import { BurnResult } from '../../../src/types';
+import { BurnResult } from '../types';
 
 /**
  * Burn tokens by sending to incinerator address

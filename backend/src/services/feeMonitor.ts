@@ -2,7 +2,7 @@ import { pumpFunAPI } from '../lib/pumpfun';
 import { log } from '../lib/logger';
 import { tokenMint, claimThresholdSol } from '../env';
 import { insertMonitorCheck } from '../db/queries';
-import { ClaimableFeesResponse, InsufficientFeesError } from '../../../src/types';
+import { ClaimableFeesResponse, InsufficientFeesError } from '../types';
 
 /**
  * Check claimable fees from Pump.fun bonding curve

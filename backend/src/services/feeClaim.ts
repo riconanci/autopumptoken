@@ -9,7 +9,7 @@ import {
   buybackPercent 
 } from '../env';
 import { insertClaim, updateClaimStatus } from '../db/queries';
-import { ClaimResult } from '../../../src/types';
+import { ClaimResult } from '../types';
 
 /**
  * Claim creator fees from Pump.fun

@@ -3,7 +3,7 @@ import { keypairFromSecret, solToLamports, getExplorerUrl } from '../lib/solana'
 import { log } from '../lib/logger';
 import { creatorWalletSecret, tokenMint, slippageBps } from '../env';
 import { insertBuyback, updateBuybackStatus } from '../db/queries';
-import { BuybackResult } from '../../../src/types';
+import { BuybackResult } from '../types';
 
 /**
  * Buy tokens from Pump.fun bonding curve

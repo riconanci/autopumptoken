@@ -3,7 +3,7 @@ import { executeClaimFlow } from '../services/claimOrchestrator';
 import { shouldClaimFees } from '../services/feeMonitor';
 import { adminApiKey, enableManualClaim } from '../env';
 import { log } from '../lib/logger';
-import { ApiResponse, ManualClaimRequest } from '../../../src/types';
+import { ApiResponse, ManualClaimRequest } from '../types';
 
 const router = Router();
 

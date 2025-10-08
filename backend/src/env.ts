@@ -188,6 +188,8 @@ export const env = validateEnv();
 export const {
   rpcEndpoint,
   pumpApiBase,
+  creatorWalletSecret,
+  treasuryWalletSecret,
   tokenMint,
   tokenSymbol,
   tokenName,
