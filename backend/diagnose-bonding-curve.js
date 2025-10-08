@@ -1,131 +1,127 @@
 /**
- * Diagnostic script to find correct offsets in bonding curve data
+ * Diagnostic script to check what values are in your bonding curve
+ * This will show us why it was claiming when fees were 0
+ * 
  * Run: node diagnose-bonding-curve.js
  */
 
 require('dotenv').config();
 const { Connection, PublicKey } = require('@solana/web3.js');
 
-const MINT = process.env.TOKEN_MINT || '9AV236iTUAhkJz2vwjKW8rCTsgH7TDNU9CiY67M4pump';
-const RPC = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
-const PUMP_PROGRAM_ID = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
-
-async function diagnoseCurve() {
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('BONDING CURVE DATA STRUCTURE ANALYSIS');
-  console.log('═══════════════════════════════════════════════════════════\n');
+async function diagnose() {
+  const MINT = process.env.TOKEN_MINT;
+  const RPC = process.env.RPC_ENDPOINT || 'https://api.mainnet-beta.solana.com';
+  const PUMP_PROGRAM = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
   
-  const connection = new Connection(RPC, 'confirmed');
+  console.log('\n================================================');
+  console.log('BONDING CURVE DIAGNOSTIC');
+  console.log('================================================\n');
+  
+  const connection = new Connection(RPC);
   const mintPubkey = new PublicKey(MINT);
   
   console.log('Token Mint:', MINT);
+  console.log('RPC:', RPC, '\n');
   
+  // Derive bonding curve PDA
   const [bondingCurve] = await PublicKey.findProgramAddress(
     [Buffer.from('bonding-curve'), mintPubkey.toBuffer()],
-    PUMP_PROGRAM_ID
+    PUMP_PROGRAM
   );
   
   console.log('Bonding Curve PDA:', bondingCurve.toString(), '\n');
   
+  // Get account info
   const accountInfo = await connection.getAccountInfo(bondingCurve);
   
   if (!accountInfo) {
-    console.log('❌ Bonding curve not found!');
+    console.log('❌ ERROR: Bonding curve account not found!');
+    console.log('   This token may not be on Pump.fun\n');
     return;
   }
   
   const data = accountInfo.data;
-  const accountBalance = accountInfo.lamports;
-  const accountBalanceSOL = accountBalance / 1e9;
+  const accountBalance = accountInfo.lamports / 1e9;
   
-  console.log('Account Balance:', accountBalance, 'lamports');
-  console.log('Account Balance:', accountBalanceSOL.toFixed(9), 'SOL');
-  console.log('Data Length:', data.length, 'bytes\n');
+  console.log('✅ Bonding curve found!');
+  console.log('   Account Balance:', accountBalance.toFixed(9), 'SOL');
+  console.log('   Data Length:', data.length, 'bytes\n');
   
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('SEARCHING FOR REASONABLE SOL AMOUNTS');
-  console.log('(Looking for values between 0 and account balance)');
-  console.log('═══════════════════════════════════════════════════════════\n');
+  console.log('================================================');
+  console.log('CHECKING ALL POSSIBLE FEE OFFSETS');
+  console.log('================================================\n');
   
-  const candidates = [];
+  // Check all u64 values at 8-byte intervals
+  const offsets = [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96];
   
-  // Try all possible u64 offsets
-  for (let offset = 0; offset <= data.length - 8; offset += 8) {
+  console.log('Offset | Value (lamports)           | As SOL');
+  console.log('-------|----------------------------|------------------');
+  
+  for (const offset of offsets) {
     try {
       const value = data.readBigUInt64LE(offset);
       const asSol = Number(value) / 1e9;
       
-      // Must be positive and less than account balance
-      if (asSol > 0 && asSol <= accountBalanceSOL && asSol < 100) {
-        candidates.push({
-          offset,
-          lamports: value.toString(),
-          sol: asSol
-        });
-        
-        console.log(`Offset ${String(offset).padStart(3)}:`,
-                    String(asSol.toFixed(9)).padStart(18), 'SOL',
-                    '← CANDIDATE');
-      }
+      // Highlight the offset we're using (32)
+      const marker = offset === 32 ? ' ⬅️ WE READ THIS' : '';
+      
+      console.log(
+        String(offset).padStart(6) + ' | ' +
+        value.toString().padEnd(26) + ' | ' +
+        asSol.toFixed(9).padStart(16) + ' SOL' +
+        marker
+      );
     } catch (e) {
-      // Skip invalid reads
+      console.log(String(offset).padStart(6) + ' | ERROR reading data');
     }
   }
   
-  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('\n================================================');
   console.log('ANALYSIS');
-  console.log('═══════════════════════════════════════════════════════════\n');
+  console.log('================================================\n');
   
-  if (candidates.length === 0) {
-    console.log('❌ No reasonable SOL amounts found in bonding curve data!');
-    console.log('   This could mean:');
-    console.log('   1. The bonding curve structure is different than expected');
-    console.log('   2. The token may not have active trading');
-    console.log('   3. All reserves have been claimed already\n');
-    
-    console.log('FALLBACK APPROACH:');
-    console.log('Since we can\'t find reserve data, use this simple formula:');
-    console.log('  claimableFees = accountBalance - minRentExempt');
-    console.log('  claimableFees = ' + accountBalanceSOL.toFixed(9) + ' - 0.002');
-    console.log('  claimableFees = ' + (accountBalanceSOL - 0.002).toFixed(9) + ' SOL\n');
-    
+  // Read what we think are claimable fees (offset 32)
+  const claimableFeesLamports = data.readBigUInt64LE(32);
+  const claimableFees = Number(claimableFeesLamports) / 1e9;
+  
+  console.log('Current system reads offset 32 as claimable fees:');
+  console.log('   Claimable Fees:', claimableFees.toFixed(9), 'SOL\n');
+  
+  console.log('Your threshold settings:');
+  console.log('   CLAIM_THRESHOLD_SOL:', process.env.CLAIM_THRESHOLD_SOL, 'SOL\n');
+  
+  if (claimableFees >= parseFloat(process.env.CLAIM_THRESHOLD_SOL || '0.01')) {
+    console.log('⚠️  WOULD TRIGGER CLAIM');
+    console.log('   Fees (' + claimableFees.toFixed(9) + ') >= Threshold (' + process.env.CLAIM_THRESHOLD_SOL + ')');
   } else {
-    console.log('Found', candidates.length, 'candidate value(s) for reserves:\n');
-    
-    candidates.forEach((c, i) => {
-      const claimable = accountBalanceSOL - c.sol;
-      console.log(`Candidate ${i + 1}:`);
-      console.log('  Offset:', c.offset);
-      console.log('  Reserve Amount:', c.sol.toFixed(9), 'SOL');
-      console.log('  Claimable Fees:', claimable.toFixed(9), 'SOL');
-      console.log('  Formula: accountBalance(' + accountBalanceSOL.toFixed(9) + ') - reserve(' + c.sol.toFixed(9) + ')');
-      console.log('');
-    });
-    
-    console.log('RECOMMENDATION:');
-    if (candidates.length === 1) {
-      console.log('  ✓ Use offset', candidates[0].offset);
-      console.log('  ✓ Claimable fees:', (accountBalanceSOL - candidates[0].sol).toFixed(9), 'SOL');
-    } else {
-      // The largest reserve value is most likely correct
-      // (smallest claimable amount is most conservative)
-      const best = candidates.reduce((max, c) => c.sol > max.sol ? c : max);
-      console.log('  ✓ Most likely correct: offset', best.offset);
-      console.log('  ✓ Reserve amount:', best.sol.toFixed(9), 'SOL');
-      console.log('  ✓ Claimable fees:', (accountBalanceSOL - best.sol).toFixed(9), 'SOL');
-    }
+    console.log('✅ BELOW THRESHOLD - No claim would trigger');
+    console.log('   Fees (' + claimableFees.toFixed(9) + ') < Threshold (' + process.env.CLAIM_THRESHOLD_SOL + ')');
   }
   
-  console.log('\n═══════════════════════════════════════════════════════════');
-  console.log('RAW DATA HEX DUMP (first 128 bytes)');
-  console.log('═══════════════════════════════════════════════════════════\n');
+  console.log('\n================================================');
+  console.log('LIKELY EXPLANATION');
+  console.log('================================================\n');
   
-  const hexLines = data.slice(0, 128).toString('hex').match(/.{1,64}/g);
-  hexLines.forEach((line, i) => {
-    console.log(`${String(i * 32).padStart(3)}:`, line);
-  });
+  if (claimableFees === 0) {
+    console.log('✅ Offset 32 shows 0 SOL - this is correct');
+    console.log('   No fees accumulated yet.');
+  } else if (claimableFees < 0.0001) {
+    console.log('⚠️  Offset 32 shows very small amount');
+    console.log('   This might be rent or dust, not actual claimable fees.');
+  } else if (claimableFees > 0.01 && claimableFees < accountBalance) {
+    console.log('❓ Offset 32 shows:', claimableFees.toFixed(9), 'SOL');
+    console.log('   This MIGHT be actual claimable fees...');
+    console.log('   OR it could be reserves/liquidity being misread.');
+  } else if (claimableFees >= accountBalance) {
+    console.log('❌ Offset 32 shows amount >= account balance');
+    console.log('   This is WRONG - likely reading wrong offset!');
+    console.log('   The correct offset for your token might be different.');
+  }
   
-  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('\n================================================\n');
 }
 
-diagnoseCurve().catch(console.error);
+diagnose().catch(err => {
+  console.error('❌ Error:', err.message);
+  console.error(err);
+});

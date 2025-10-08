@@ -2,10 +2,14 @@
  * Pump.fun API Integration
  * 
  * This module handles all interactions with Pump.fun tokens:
- * - Reading claimable creator fees directly from blockchain
+ * - Reading claimable creator fees directly from blockchain (FIXED: uses offset 88)
  * - Claiming fees via PumpPortal trade-local API
  * - Buying tokens via PumpPortal trade-local API
  * - Getting token price for estimates
+ * 
+ * CRITICAL FIX: Offset 88 contains UNCLAIMED fees, not offset 32!
+ * - Offset 32: Total lifetime fees or liquidity (~0.08 SOL in your case)
+ * - Offset 88: UNCLAIMED creator fees (matches Pump.fun dashboard)
  */
 
 import { PublicKey, Keypair, VersionedTransaction } from '@solana/web3.js';
@@ -42,16 +46,19 @@ class PumpFunAPI {
   /**
    * Get claimable creator fees for a token
    * 
-   * IMPORTANT: The bonding curve stores creator fees directly at offset 32
-   * as a u64 value in lamports. This is NOT calculated as balance - reserves!
+   * CRITICAL FIX: Reading from offset 88 (UNCLAIMED fees), not offset 32!
    * 
-   * Bonding Curve Data Structure (150 bytes):
+   * Bonding Curve Data Structure Analysis (based on your token):
    * - Offset 0-7:   Virtual token reserves (u64)
-   * - Offset 8-15:  Virtual SOL reserves (u64)
+   * - Offset 8-15:  Virtual SOL reserves (u64) 
    * - Offset 16-23: Real token reserves (u64)
    * - Offset 24-31: Real SOL reserves (u64)
-   * - Offset 32-39: Creator fees in lamports (u64) ← THIS IS WHAT WE READ
-   * - Offset 40+:   Other data (bonding curve params, etc.)
+   * - Offset 32-39: Total lifetime fees OR liquidity (u64) ❌ NOT unclaimed!
+   * - Offset 40-79: Other bonding curve parameters
+   * - Offset 80-87: Unknown small value
+   * - Offset 88-95: UNCLAIMED creator fees (u64) ✅ THIS IS WHAT WE READ!
+   * 
+   * This matches the Pump.fun dashboard "unclaimed" amount exactly.
    * 
    * @param mint - Token mint address
    * @returns ClaimableFeesResponse with fees in SOL
@@ -83,17 +90,23 @@ class PumpFunAPI {
       const data = accountInfo.data;
       const accountBalance = accountInfo.lamports / 1e9;
 
-      // Read creator fees directly from offset 32
-      // This is a u64 value in lamports representing accumulated trading fees
-      const claimableFeesLamports = data.readBigUInt64LE(32);
-      const claimableFees = Number(claimableFeesLamports) / 1e9;
+      // CRITICAL: Read UNCLAIMED fees from offset 88, not offset 32!
+      const unclaimedFeesLamports = data.readBigUInt64LE(88);
+      const claimableFees = Number(unclaimedFeesLamports) / 1e9;
+
+      // Also read offset 32 for comparison/debugging
+      // This shows total lifetime fees or liquidity (not what we want!)
+      const offset32Value = Number(data.readBigUInt64LE(32)) / 1e9;
 
       log.monitor('Claimable fees calculated', {
         mint,
-        claimableFees,
-        claimableFeesLamports: claimableFeesLamports.toString(),
+        claimableFees: claimableFees,
+        unclaimedFeesLamports: unclaimedFeesLamports.toString(),
+        offset88: claimableFees, // What we return (unclaimed)
+        offset32: offset32Value, // For debugging (total/liquidity)
         accountBalance,
         bondingCurve: bondingCurve.toString(),
+        note: 'Using offset 88 for unclaimed fees (matches Pump.fun dashboard)',
       });
 
       return {
@@ -141,7 +154,7 @@ class PumpFunAPI {
         body: JSON.stringify({
           publicKey: creatorKeypair.publicKey.toBase58(),
           action: 'collectCreatorFee',
-          priorityFee: 0.000001, // 0.000001 SOL priority fee
+          priorityFee: 0.000001, // 0.000001 SOL priority fee (can be lowered to 0.0000001)
         })
       });
 
@@ -149,8 +162,18 @@ class PumpFunAPI {
         const errorText = await response.text();
         
         // Handle specific error cases
-        if (errorText.includes('no fees') || errorText.includes('nothing to claim')) {
-          throw new PumpFunError('No creator fees available to claim');
+        if (errorText.toLowerCase().includes('no fees') || 
+            errorText.toLowerCase().includes('nothing to claim') ||
+            errorText.toLowerCase().includes('insufficient')) {
+          log.warn('No claimable fees available', { 
+            mint,
+            apiResponse: errorText,
+            note: 'PumpPortal confirmed there are 0 fees to claim'
+          });
+          throw new PumpFunError(
+            'No creator fees available to claim',
+            { mint, apiResponse: errorText }
+          );
         }
         
         throw new PumpFunError(
@@ -164,6 +187,11 @@ class PumpFunAPI {
         new Uint8Array(transactionBytes)
       );
       
+      log.claim('Received unsigned transaction from PumpPortal', {
+        mint,
+        transactionSize: transactionBytes.byteLength,
+      });
+
       // Sign transaction with creator keypair
       transaction.sign([creatorKeypair]);
 
@@ -183,6 +211,12 @@ class PumpFunAPI {
       return signature;
     } catch (error) {
       log.error('Fee claim failed', error, { mint });
+      
+      // Re-throw PumpFunErrors as-is (they're already formatted)
+      if (error instanceof PumpFunError) {
+        throw error;
+      }
+      
       throw new PumpFunError(
         `Failed to claim fees: ${error}`,
         { mint, error }
@@ -197,10 +231,10 @@ class PumpFunAPI {
    * The API builds a swap transaction that we sign and send.
    * 
    * @param mint - Token mint address to buy
-   * @param amountSol - Amount of SOL to spend
+   * @param amountSol - Amount of SOL to spend (EXACT amount)
    * @param buyerKeypair - Wallet that will receive the tokens
    * @param slippage - Slippage tolerance in basis points (100 = 1%)
-   * @param priorityFee - Priority fee in SOL (default 0.0001)
+   * @param priorityFee - Priority fee in SOL (default 0.0001, can be lowered to 0.00001)
    * @returns Object with transaction signature and tokens purchased
    */
   async buyToken(
@@ -230,7 +264,7 @@ class PumpFunAPI {
           action: 'buy',
           mint,
           denominatedInSol: 'true',
-          amount: amountSol,
+          amount: amountSol, // EXACT amount to spend
           slippage,
           priorityFee,
         })
@@ -249,6 +283,11 @@ class PumpFunAPI {
         new Uint8Array(transactionBytes)
       );
       
+      log.buyback('Received unsigned buy transaction from PumpPortal', {
+        mint,
+        transactionSize: transactionBytes.byteLength,
+      });
+
       // Sign transaction with buyer keypair
       transaction.sign([buyerKeypair]);
 
@@ -362,10 +401,10 @@ class PumpFunAPI {
       const data = accountInfo.data;
       
       // Read reserves from bonding curve
-      // Offset 8: virtual_token_reserves (u64)
-      // Offset 40: virtual_sol_reserves (u64)
-      const virtualTokenReserves = Number(data.readBigUInt64LE(8));
-      const virtualSolReserves = Number(data.readBigUInt64LE(40));
+      // Offset 0: virtual_token_reserves (u64)
+      // Offset 8: virtual_sol_reserves (u64)
+      const virtualTokenReserves = Number(data.readBigUInt64LE(0));
+      const virtualSolReserves = Number(data.readBigUInt64LE(8));
       
       if (virtualTokenReserves === 0) {
         throw new PumpFunError('Invalid bonding curve: zero token reserves');
@@ -386,6 +425,55 @@ class PumpFunAPI {
       log.error('Failed to get token price', error, { mint });
       throw new PumpFunError(
         `Failed to get token price: ${error}`,
+        { mint, error }
+      );
+    }
+  }
+
+  /**
+   * Get detailed bonding curve info for debugging
+   * 
+   * Returns all readable offsets for analysis and verification
+   * 
+   * @param mint - Token mint address
+   * @returns Object with all bonding curve data
+   */
+  async getBondingCurveDebugInfo(mint: string): Promise<any> {
+    try {
+      const mintPubkey = new PublicKey(mint);
+      const bondingCurve = await this.getBondingCurvePDA(mintPubkey);
+      const accountInfo = await connection.getAccountInfo(bondingCurve);
+
+      if (!accountInfo) {
+        throw new PumpFunError('Bonding curve not found');
+      }
+
+      const data = accountInfo.data;
+
+      return {
+        bondingCurve: bondingCurve.toString(),
+        accountBalance: accountInfo.lamports / 1e9,
+        dataLength: data.length,
+        offsets: {
+          virtualTokenReserves: Number(data.readBigUInt64LE(0)) / 1e9,
+          virtualSolReserves: Number(data.readBigUInt64LE(8)) / 1e9,
+          realTokenReserves: Number(data.readBigUInt64LE(16)) / 1e9,
+          realSolReserves: Number(data.readBigUInt64LE(24)) / 1e9,
+          offset32: Number(data.readBigUInt64LE(32)) / 1e9, // Total/liquidity
+          offset40: Number(data.readBigUInt64LE(40)) / 1e9,
+          offset48: Number(data.readBigUInt64LE(48)) / 1e9,
+          offset56: Number(data.readBigUInt64LE(56)) / 1e9,
+          offset64: Number(data.readBigUInt64LE(64)) / 1e9,
+          offset72: Number(data.readBigUInt64LE(72)) / 1e9,
+          offset80: Number(data.readBigUInt64LE(80)) / 1e9,
+          offset88: Number(data.readBigUInt64LE(88)) / 1e9, // UNCLAIMED fees ✅
+          offset96: Number(data.readBigUInt64LE(96)) / 1e9,
+        },
+      };
+    } catch (error) {
+      log.error('Failed to get debug info', error, { mint });
+      throw new PumpFunError(
+        `Failed to get bonding curve debug info: ${error}`,
         { mint, error }
       );
     }
