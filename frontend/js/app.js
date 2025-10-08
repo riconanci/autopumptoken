@@ -1,12 +1,19 @@
 // AUTO BURN TEK - MAIN APPLICATION
-
-// Configuration
-const CONFIG = {
+// Load config from config.js
+const CONFIG = typeof SITE_CONFIG !== 'undefined' ? SITE_CONFIG : {
     API_BASE: 'http://localhost:3000/api',
     REFRESH_INTERVAL: 30000,
     TOKEN_MINT: '9AV236iTUAhkJz2vwjKW8rCTsgH7TDNU9CiY67M4pump',
     TOTAL_SUPPLY: 10000000,
     TOKEN_SYMBOL: 'ABT',
+    LINKS: {
+        PUMP_FUN: 'https://pump.fun/coin/9AV236iTUAhkJz2vwjKW8rCTsgH7TDNU9CiY67M4pump',
+        TWITTER: 'https://twitter.com/YourTokenHandle'
+    },
+    DISPLAY: {
+        SHOW_FULL_ADDRESS: true,
+        BURNS_PER_PAGE: 10
+    }
 };
 
 // Global state
@@ -14,12 +21,13 @@ let burnChart = null;
 let currentTimeframe = '24h';
 let refreshTimer = CONFIG.REFRESH_INTERVAL / 1000;
 let allBurns = [];
-let displayedBurns = 10;
+let displayedBurns = CONFIG.DISPLAY?.BURNS_PER_PAGE || 10;
 
 // INITIALIZATION
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🔥 Auto Burn Tek Dashboard Initializing...');
     displayContractAddress();
+    initializeSocialLinks();
     initializeBurnChart();
     await fetchAndUpdateAllData();
     startAutoRefresh();
@@ -29,16 +37,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 // CONTRACT ADDRESS DISPLAY
 function displayContractAddress() {
     const addressElement = document.getElementById('contractAddress');
-    const solscanLink = document.getElementById('solscanLink');
-    const shortAddress = `${CONFIG.TOKEN_MINT.slice(0, 8)}...${CONFIG.TOKEN_MINT.slice(-6)}`;
-    addressElement.textContent = shortAddress;
-    addressElement.title = CONFIG.TOKEN_MINT;
-    solscanLink.href = `https://solscan.io/token/${CONFIG.TOKEN_MINT}`;
+    // Always show full address
+    addressElement.textContent = CONFIG.TOKEN_MINT;
 }
 
-function copyContract() {
+// ✅ NEW: Click address to copy
+function copyContractAddress() {
     navigator.clipboard.writeText(CONFIG.TOKEN_MINT);
     showNotification('Contract address copied! 📋');
+}
+
+// SOCIAL LINKS INITIALIZATION
+function initializeSocialLinks() {
+    const linksContainer = document.getElementById('socialLinks');
+    if (!linksContainer) return;
+    
+    let linksHTML = '';
+    
+    // Pump.fun link
+    if (CONFIG.LINKS.PUMP_FUN) {
+        linksHTML += `<a href="${CONFIG.LINKS.PUMP_FUN}" target="_blank" rel="noopener" class="social-link">
+            <span class="social-icon">🚀</span> Pump.fun
+        </a>`;
+    }
+    
+    // Twitter/X link - Changed to "X"
+    if (CONFIG.LINKS.TWITTER) {
+        linksHTML += `<a href="${CONFIG.LINKS.TWITTER}" target="_blank" rel="noopener" class="social-link">
+            <span class="social-icon">𝕏</span> X
+        </a>`;
+    }
+    
+    // Optional: Website link
+    if (CONFIG.LINKS.WEBSITE) {
+        linksHTML += `<a href="${CONFIG.LINKS.WEBSITE}" target="_blank" rel="noopener" class="social-link">
+            <span class="social-icon">🌐</span> Website
+        </a>`;
+    }
+    
+    // Optional: Telegram link
+    if (CONFIG.LINKS.TELEGRAM) {
+        linksHTML += `<a href="${CONFIG.LINKS.TELEGRAM}" target="_blank" rel="noopener" class="social-link">
+            <span class="social-icon">💬</span> Telegram
+        </a>`;
+    }
+    
+    linksContainer.innerHTML = linksHTML;
 }
 
 // DATA FETCHING
@@ -50,7 +94,7 @@ async function fetchAndUpdateAllData() {
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Unknown error');
         console.log('Data received:', data);
-        updateMetrics(data.data.stats);
+        updateMetrics(data.data.stats, data.data.recentTransactions);
         update24HourStats(data.data.recentTransactions);
         updateChart(data.data.burnChartData);
         updateBurnsFeed(data.data.recentTransactions);
@@ -81,7 +125,7 @@ function useMockData() {
             amount: Math.floor(Math.random() * 200000) + 50000,
             timestamp: new Date(Date.now() - i * 600000).toISOString(),
             status: 'confirmed',
-            sol_spent: (Math.random() * 0.02 + 0.001).toFixed(4), // Random SOL between 0.001 and 0.021
+            sol_spent: (Math.random() * 0.02 + 0.001).toFixed(4),
         });
     }
     const mockChartData = [];
@@ -93,7 +137,7 @@ function useMockData() {
             cumulativeBurned: cumulative,
         });
     }
-    updateMetrics(mockStats);
+    updateMetrics(mockStats, mockTransactions);
     update24HourStats(mockTransactions);
     updateChart(mockChartData);
     updateBurnsFeed(mockTransactions);
@@ -101,13 +145,20 @@ function useMockData() {
 }
 
 // UPDATE METRICS
-function updateMetrics(stats) {
+function updateMetrics(stats, transactions) {
     const totalBurned = Number(stats.totalTokensBurned || 0);
     const burnedPercent = ((totalBurned / CONFIG.TOTAL_SUPPLY) * 100).toFixed(2);
-    const solSpent = Number(stats.totalBuybackSpent || 0).toFixed(2);
+    
+    // Calculate total SOL spent from actual burn transactions
+    const confirmedBurns = transactions.filter(tx => tx.type === 'burn' && tx.status === 'confirmed');
+    const totalSolBurned = confirmedBurns.reduce((sum, tx) => {
+        const solSpent = tx.sol_spent || 0;
+        return sum + Number(solSpent);
+    }, 0);
+    
     animateValue('totalBurned', 0, totalBurned, 2000, formatNumber);
     animateValue('burnedPercent', 0, parseFloat(burnedPercent), 2000, (val) => val.toFixed(2) + '%');
-    animateValue('solSpent', 0, parseFloat(solSpent), 2000, (val) => val.toFixed(2));
+    animateValue('solSpent', 0, totalSolBurned, 2000, (val) => val.toFixed(4));
 }
 
 // UPDATE 24 HOUR STATS
@@ -232,10 +283,9 @@ function updateBurnsFeed(transactions) {
 function createBurnCard(burn, isNew = false) {
     const timeAgo = getTimeAgo(burn.timestamp);
     const tokensAmount = formatNumber(burn.amount);
-    // Get SOL amount - handle different possible property names from backend
-    let solAmount = burn.sol_spent || burn.solSpent || burn.sol_amount;
+    let solAmount = burn.sol_spent || burn.solSpent || burn.sol_amount || 0;
     if (typeof solAmount === 'number') {
-        solAmount = solAmount.toFixed(6); // Show 6 decimals for precision
+        solAmount = solAmount.toFixed(6);
     } else if (typeof solAmount === 'string') {
         const parsed = parseFloat(solAmount);
         solAmount = isNaN(parsed) ? '0.000000' : parsed.toFixed(6);

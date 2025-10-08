@@ -88,56 +88,130 @@ body {
     font-weight: 400;
 }
 
+/* SOCIAL LINKS */
+.social-links {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+    margin: var(--spacing-lg) 0 var(--spacing-lg) 0;
+    flex-wrap: wrap;
+}
+
+.social-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: rgba(255, 107, 53, 0.1);
+    border: 2px solid rgba(255, 107, 53, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--flame-orange);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.social-link:hover {
+    background: rgba(255, 107, 53, 0.25);
+    border-color: var(--flame-orange);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+}
+
+.social-link:active {
+    transform: translateY(-1px);
+}
+
+.social-icon {
+    font-size: 20px;
+    line-height: 1;
+    filter: drop-shadow(0 0 5px var(--flame-orange));
+}
+
+/* CENTERED CONTRACT LAYOUT */
 .token-info {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: var(--spacing-md);
     flex-wrap: wrap;
+    margin-top: var(--spacing-lg);
 }
 
-.contract-address {
-    background: var(--card-dark);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-gray);
+.contract-wrapper {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: var(--spacing-xs);
+}
+
+.contract-label {
+    color: var(--flame-orange);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+}
+
+/* CLICKABLE CONTRACT ADDRESS BOX */
+.contract-address {
+    background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(247, 147, 30, 0.15));
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--flame-orange);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(255, 107, 53, 0.3);
+    cursor: pointer;
     transition: all 0.3s ease;
 }
 
+/* Animated glow effect */
+.contract-address::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(255, 107, 53, 0.1),
+        transparent
+    );
+    animation: shimmer 3s infinite;
+}
+
 .contract-address:hover {
-    border-color: var(--flame-orange);
-    box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+    border-color: var(--deep-red);
+    box-shadow: 0 0 40px rgba(255, 107, 53, 0.6);
+    transform: scale(1.02);
 }
 
-.label {
-    color: var(--text-gray);
-    font-size: 0.9rem;
+.contract-address:active {
+    transform: scale(0.98);
 }
 
+/* BIGGER FONT for address */
 .address {
     font-family: 'Courier New', monospace;
     color: var(--text-white);
-    font-size: 0.95rem;
-}
-
-.copy-btn, .solscan-btn {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1.2rem;
-    padding: 0.25rem;
-    transition: transform 0.2s ease;
-}
-
-.copy-btn:hover, .solscan-btn:hover {
-    transform: scale(1.2);
-}
-
-.solscan-btn {
-    text-decoration: none;
+    font-size: 1.4rem;
+    font-weight: 700;
+    word-break: break-all;
+    line-height: 1.6;
+    text-align: center;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+    position: relative;
+    z-index: 1;
+    user-select: all;
 }
 
 .live-indicator {
@@ -571,6 +645,15 @@ body {
     }
 }
 
+@keyframes shimmer {
+    0% {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    100% {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
     .title { font-size: 2.5rem; }
@@ -583,12 +666,24 @@ body {
         gap: var(--spacing-xs);
     }
     .share-buttons { flex-direction: column; }
-    .contract-address { font-size: 0.85rem; }
+    
     .address {
-        font-size: 0.8rem;
-        max-width: 150px;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 1rem;
+    }
+    
+    .social-links {
+        gap: 10px;
+        margin: var(--spacing-md) 0;
+    }
+    
+    .social-link {
+        padding: 10px 18px;
+        font-size: 0.85rem;
+        gap: 6px;
+    }
+    
+    .social-icon {
+        font-size: 18px;
     }
 }
 
@@ -597,4 +692,30 @@ body {
     .title { font-size: 2rem; }
     .logo { font-size: 3rem; }
     .metric-value { font-size: 2rem; }
+    
+    .contract-address {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .address {
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .contract-label {
+        font-size: 0.7rem;
+    }
+    
+    .social-links {
+        gap: 8px;
+    }
+    
+    .social-link {
+        padding: 8px 14px;
+        font-size: 0.75rem;
+    }
+    
+    .social-icon {
+        font-size: 16px;
+    }
 }
