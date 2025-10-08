@@ -1,0 +1,103 @@
+# ===========================================
+# AUTO PUMP TOKEN - GIT IGNORE
+# ===========================================
+
+# Environment Variables (CRITICAL - NEVER COMMIT!)
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+
+# Node Modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build Output
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+combined.log
+error.log
+exceptions.log
+rejections.log
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+autopump.db
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# OS Files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# PM2
+.pm2/
+pm2-*.log
+
+# Backup Files
+*.backup
+*.bak
+backup_*.sql
+
+# Wallet Files (CRITICAL - NEVER COMMIT!)
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+wallet*.json
+keypair*.json
+
+# Secrets & Keys (CRITICAL - NEVER COMMIT!)
+secrets/
+keys/
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Documentation Build
+docs/.vuepress/dist
+docs/.vitepress/dist
+
+# ===========================================
+# REMINDER: NEVER COMMIT THESE!
+# ===========================================
+# - .env file
+# - Wallet private keys
+# - Admin API keys
+# - Database credentials
+# - RPC API keys
+# ===========================================

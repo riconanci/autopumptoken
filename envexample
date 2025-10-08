@@ -1,0 +1,105 @@
+# ===========================================
+# AUTO PUMP TOKEN - ENVIRONMENT CONFIGURATION
+# ===========================================
+
+# NETWORK SETTINGS
+# -----------------
+# Solana RPC endpoint (use paid RPC for production: Helius, QuickNode, etc.)
+RPC_ENDPOINT=https://api.mainnet-beta.solana.com
+
+# PumpPortal API base URL
+PUMP_API_BASE=https://pumpportal.fun/api
+
+# WALLET CONFIGURATION
+# --------------------
+# Creator wallet private key (base58 encoded) - MUST be token creator
+CREATOR_WALLET_SECRET=YOUR_CREATOR_WALLET_SECRET_HERE
+
+# Treasury wallet private key (base58 encoded) - Receives 50% of fees
+TREASURY_WALLET_SECRET=YOUR_TREASURY_WALLET_SECRET_HERE
+
+# TOKEN CONFIGURATION
+# -------------------
+# Auto Pump Token mint address
+TOKEN_MINT=YOUR_TOKEN_MINT_ADDRESS_HERE
+
+# Token metadata
+TOKEN_SYMBOL=AUTOPUMP
+TOKEN_NAME=Auto Pump Token
+
+# CLAIM SETTINGS
+# --------------
+# How often to check for claimable fees (in minutes)
+CHECK_INTERVAL_MINUTES=5
+
+# Minimum SOL required before claiming (prevents gas waste on tiny amounts)
+CLAIM_THRESHOLD_SOL=0.05
+
+# Enable automatic claiming (set to false for manual-only mode)
+AUTO_CLAIM_ENABLED=true
+
+# SPLIT CONFIGURATION
+# -------------------
+# Percentage of claimed fees sent to treasury wallet
+TREASURY_PERCENT=50
+
+# Percentage of claimed fees used for buyback+burn
+BUYBACK_PERCENT=50
+
+# INCINERATOR ADDRESS
+# -------------------
+# Solana incinerator address (permanent lock)
+BURN_ADDRESS=1nc1nerator11111111111111111111111111111111
+
+# ADVANCED SETTINGS
+# -----------------
+# Slippage tolerance in basis points (100 = 1%)
+SLIPPAGE_BPS=100
+
+# Maximum transaction retry attempts
+MAX_RETRIES=3
+
+# Transaction confirmation level (processed|confirmed|finalized)
+CONFIRMATION_COMMITMENT=confirmed
+
+# ADMIN CONTROLS
+# --------------
+# Secret key for admin endpoints (use a strong random string)
+ADMIN_API_KEY=YOUR_SECURE_ADMIN_KEY_HERE
+
+# Allow manual claim triggers via API
+ENABLE_MANUAL_CLAIM=true
+
+# MONITORING & LOGGING
+# --------------------
+# Log level (debug|info|warn|error)
+LOG_LEVEL=info
+
+# Optional webhook for notifications (Discord/Slack)
+# WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Enable public stats API endpoints
+PUBLIC_STATS_ENABLED=true
+
+# DATABASE
+# --------
+# PostgreSQL connection string
+DATABASE_URL=postgresql://user:password@localhost:5432/autopump
+
+# Or use SQLite for simple deployment
+# DATABASE_URL=sqlite://autopump.db
+
+# SERVER
+# ------
+# API server port
+PORT=3000
+
+# ===========================================
+# SECURITY NOTES
+# ===========================================
+# 1. NEVER commit the actual .env file to git
+# 2. Keep wallet private keys secure
+# 3. Use environment-specific RPC endpoints
+# 4. Rotate ADMIN_API_KEY regularly
+# 5. Use paid RPC for production (rate limits)
+# ===========================================

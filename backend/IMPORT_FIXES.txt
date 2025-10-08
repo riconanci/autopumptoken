@@ -1,0 +1,30 @@
+Fix these imports manually:
+
+1. src/env.ts - Line 1:
+   Change: import dotenv from 'dotenv';
+   To:     import * as dotenv from 'dotenv';
+           dotenv.config();
+
+2. src/lib/logger.ts - Line 1:
+   Change: import winston from 'winston';
+   To:     import * as winston from 'winston';
+
+3. src/routes/admin.ts - Line 12:
+   Change: from '../../../src/types'
+   To:     from '../types'
+
+4. src/routes/claim.ts - Line 6:
+   Change: from '../../../src/types'
+   To:     from '../types'
+
+5. src/routes/stats.ts - Line 7:
+   Change: from '../../../src/types'
+   To:     from '../types'
+
+6. src/services/burn.ts - Line 6:
+   Change: from '../../../src/types'
+   To:     from '../types'
+
+7. src/scheduler.ts imports:
+   import * as cron from 'node-cron';
+   All paths should be relative from src root
