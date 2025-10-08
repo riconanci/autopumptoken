@@ -1,21 +1,20 @@
 /**
  * Pump.fun API Integration
  * 
- * This module handles all interactions with Pump.fun tokens:
- * - Reading claimable creator fees directly from blockchain (FIXED: uses offset 88)
- * - Claiming fees via PumpPortal trade-local API
- * - Buying tokens via PumpPortal trade-local API
- * - Getting token price for estimates
+ * CORRECTED: Reads claimable fees from Creator Vault PDA, not bonding curve!
  * 
- * CRITICAL FIX: Offset 88 contains UNCLAIMED fees, not offset 32!
- * - Offset 32: Total lifetime fees or liquidity (~0.08 SOL in your case)
- * - Offset 88: UNCLAIMED creator fees (matches Pump.fun dashboard)
+ * Discovery: Creator fees are stored in a separate PDA per creator:
+ * - Seeds: ["creator-vault", creator_pubkey]
+ * - The account balance IS the claimable fees amount
+ * - Owned by System Program (11111...)
+ * - Has no data structure (balance-only account)
  */
 
 import { PublicKey, Keypair, VersionedTransaction } from '@solana/web3.js';
-import { slippageBps } from '../env';
+import { slippageBps, creatorWalletSecret } from '../env';
 import { log } from './logger';
 import { connection } from './solana';
+import { keypairFromSecret } from './solana';
 import {
   PumpFunError,
   ClaimableFeesResponse,
@@ -44,89 +43,102 @@ class PumpFunAPI {
   }
 
   /**
+   * Derive Creator Vault PDA
+   * This is where claimable creator fees are stored (not in bonding curve!)
+   * 
+   * @param creatorPubkey - Creator wallet public key
+   * @returns Creator Vault PDA address
+   */
+  private async getCreatorVaultPDA(creatorPubkey: PublicKey): Promise<PublicKey> {
+    const [creatorVault] = await PublicKey.findProgramAddress(
+      [Buffer.from('creator-vault'), creatorPubkey.toBuffer()],
+      PUMP_PROGRAM_ID
+    );
+    return creatorVault;
+  }
+
+  /**
    * Get claimable creator fees for a token
    * 
-   * CRITICAL FIX: Reading from offset 88 (UNCLAIMED fees), not offset 32!
+   * ✅ CORRECTED APPROACH:
+   * Reads from Creator Vault PDA, not bonding curve!
    * 
-   * Bonding Curve Data Structure Analysis (based on your token):
-   * - Offset 0-7:   Virtual token reserves (u64)
-   * - Offset 8-15:  Virtual SOL reserves (u64) 
-   * - Offset 16-23: Real token reserves (u64)
-   * - Offset 24-31: Real SOL reserves (u64)
-   * - Offset 32-39: Total lifetime fees OR liquidity (u64) ❌ NOT unclaimed!
-   * - Offset 40-79: Other bonding curve parameters
-   * - Offset 80-87: Unknown small value
-   * - Offset 88-95: UNCLAIMED creator fees (u64) ✅ THIS IS WHAT WE READ!
+   * Creator Vault:
+   * - PDA derived with seeds: ["creator-vault", creator_pubkey]
+   * - Simple balance-only account (no data structure)
+   * - Account balance = claimable fees in SOL
+   * - Owned by System Program (11111...)
    * 
-   * This matches the Pump.fun dashboard "unclaimed" amount exactly.
+   * This is accurate and will scale correctly as fees accumulate!
    * 
-   * @param mint - Token mint address
-   * @returns ClaimableFeesResponse with fees in SOL
+   * @param mint - Token mint address (not used, but kept for API compatibility)
+   * @returns ClaimableFeesResponse with accurate fees in SOL
    */
-
   async getClaimableFees(mint: string): Promise<ClaimableFeesResponse> {
-  try {
-    log.monitor('Checking claimable fees from blockchain', { mint });
+    try {
+      log.monitor('Checking claimable fees from Creator Vault', { mint });
 
-    const mintPubkey = new PublicKey(mint);
-    const bondingCurve = await this.getBondingCurvePDA(mintPubkey);
+      // Get creator wallet keypair
+      const creatorKeypair = keypairFromSecret(creatorWalletSecret);
+      const creatorPubkey = creatorKeypair.publicKey;
 
-    log.monitor('Bonding curve PDA derived', {
-      mint,
-      bondingCurve: bondingCurve.toString(),
-    });
+      // Derive Creator Vault PDA
+      const creatorVault = await this.getCreatorVaultPDA(creatorPubkey);
 
-    const accountInfo = await connection.getAccountInfo(bondingCurve);
+      log.monitor('Creator Vault PDA derived', {
+        creator: creatorPubkey.toBase58(),
+        creatorVault: creatorVault.toBase58(),
+      });
 
-    if (!accountInfo) {
-      log.warn('Bonding curve account not found', { mint });
+      // Read Creator Vault account
+      const accountInfo = await connection.getAccountInfo(creatorVault);
+
+      if (!accountInfo) {
+        // Creator Vault doesn't exist yet (no fees accumulated)
+        log.warn('Creator Vault account not found', { 
+          creator: creatorPubkey.toBase58(),
+          vault: creatorVault.toBase58(),
+        });
+        return {
+          claimableFees: 0,
+          timestamp: Date.now(),
+          bondingCurveAddress: creatorVault.toString(),
+        };
+      }
+
+      // The account balance IS the claimable fees!
+      const claimableFees = accountInfo.lamports / 1e9;
+
+      log.monitor('Claimable fees read from Creator Vault', {
+        creator: creatorPubkey.toBase58(),
+        creatorVault: creatorVault.toBase58(),
+        claimableFees,
+        accountBalance: accountInfo.lamports,
+        note: 'Account balance = claimable fees',
+      });
+
       return {
-        claimableFees: 0,
+        claimableFees,
         timestamp: Date.now(),
-        bondingCurveAddress: bondingCurve.toString(),
+        bondingCurveAddress: creatorVault.toString(),
       };
+    } catch (error) {
+      log.error('Failed to check claimable fees', error, { mint });
+      throw new PumpFunError(
+        `Failed to check claimable fees: ${error}`,
+        { mint, error }
+      );
     }
-
-    const data = accountInfo.data;
-    const accountBalance = accountInfo.lamports / 1e9;
-
-    // Calculate base value
-    const offset32Value = Number(data.readBigUInt64LE(32)) / 1e9;
-    const rawCalculation = Math.max(0, accountBalance - offset32Value);
-    
-    // ✅ FIX: Multiply by 2 to get actual claimable amount
-    // Our calculation only reads ~50% of actual fees
-    const claimableFees = rawCalculation * 2;
-
-    log.monitor('Claimable fees calculated', {
-      mint,
-      accountBalance,
-      offset32Value,
-      rawCalculation,
-      claimableFees,
-      bondingCurve: bondingCurve.toString(),
-      note: 'Claimable = (Balance - Offset 32) × 2',
-    });
-
-    return {
-      claimableFees,
-      timestamp: Date.now(),
-      bondingCurveAddress: bondingCurve.toString(),
-    };
-  } catch (error) {
-    log.error('Failed to check claimable fees', error, { mint });
-    throw new PumpFunError(
-      `Failed to check claimable fees: ${error}`,
-      { mint, error }
-    );
   }
-}
 
   /**
    * Claim creator fees using PumpPortal trade-local API
    * 
    * This sends all accumulated creator fees to the creator wallet.
    * The PumpPortal API builds and returns an unsigned transaction that we sign and send.
+   * 
+   * CRITICAL: Always check wallet balance before and after to get actual claimed amount!
+   * This is the ONLY reliable way to know how much was actually claimed.
    * 
    * @param mint - Token mint address (not used by API but kept for logging)
    * @param creatorKeypair - Creator wallet keypair that will receive the fees
@@ -141,7 +153,8 @@ class PumpFunAPI {
     try {
       log.claim('Initiating fee claim via PumpPortal', { 
         mint, 
-        creator: creatorKeypair.publicKey.toBase58() 
+        creator: creatorKeypair.publicKey.toBase58(),
+        estimatedAmount: amount,
       });
 
       // Call PumpPortal trade-local API to build claim transaction
@@ -169,7 +182,7 @@ class PumpFunAPI {
           log.warn('PumpPortal confirmed no claimable fees', { 
             mint,
             apiResponse: errorText,
-            note: 'Our calculation was wrong - dashboard shows $0.00'
+            note: 'No actual fees available to claim at this time'
           });
           throw new PumpFunError(
             'No creator fees available to claim (confirmed by PumpPortal)',
@@ -460,14 +473,14 @@ class PumpFunAPI {
           virtualSolReserves: Number(data.readBigUInt64LE(8)) / 1e9,
           realTokenReserves: Number(data.readBigUInt64LE(16)) / 1e9,
           realSolReserves: Number(data.readBigUInt64LE(24)) / 1e9,
-          offset32: Number(data.readBigUInt64LE(32)) / 1e9, // Total/liquidity
+          offset32: Number(data.readBigUInt64LE(32)) / 1e9,
           offset40: Number(data.readBigUInt64LE(40)) / 1e9,
           offset48: Number(data.readBigUInt64LE(48)) / 1e9,
           offset56: Number(data.readBigUInt64LE(56)) / 1e9,
           offset64: Number(data.readBigUInt64LE(64)) / 1e9,
           offset72: Number(data.readBigUInt64LE(72)) / 1e9,
           offset80: Number(data.readBigUInt64LE(80)) / 1e9,
-          offset88: Number(data.readBigUInt64LE(88)) / 1e9, // UNCLAIMED fees ✅
+          offset88: Number(data.readBigUInt64LE(88)) / 1e9,
           offset96: Number(data.readBigUInt64LE(96)) / 1e9,
         },
       };
