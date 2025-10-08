@@ -175,6 +175,7 @@ export interface SchedulerStatus {
   nextCheckTime?: number;
   checksPerformed: number;
   claimsTriggered: number;
+  claimInProgress?: boolean; // ✅ ADDED: Prevents race conditions during claim operations
   errors: Array<{
     timestamp: number;
     message: string;

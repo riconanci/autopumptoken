@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { executeClaimFlow } from '../services/claimOrchestrator';
 import { shouldClaimFees } from '../services/feeMonitor';
+import { isClaimInProgress } from '../scheduler'; // ✅ ADDED: Import lock check
 import { adminApiKey, enableManualClaim } from '../env';
 import { log } from '../lib/logger';
 import { ApiResponse, ManualClaimRequest } from '../types';
@@ -38,6 +39,16 @@ router.post('/', verifyAdminKey, async (req: Request, res: Response) => {
       return res.status(403).json({
         success: false,
         error: 'Manual claims are disabled',
+        timestamp: Date.now(),
+      });
+    }
+
+    // ✅ ADDED: Check if claim already in progress
+    if (isClaimInProgress()) {
+      log.warn('[MANUAL CLAIM] Rejected - claim already in progress', { ip: req.ip });
+      return res.status(409).json({
+        success: false,
+        error: 'Claim operation already in progress. Please wait for it to complete.',
         timestamp: Date.now(),
       });
     }
