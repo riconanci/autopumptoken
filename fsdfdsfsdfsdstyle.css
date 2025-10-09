@@ -164,37 +164,6 @@ body {
     animation: fadeInUp 0.8s ease-out 0.3s both;
 }
 
-/* ✅ ADD this - gradient border animation */
-.coming-soon-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--flame-orange), var(--deep-red), var(--bright-yellow), var(--flame-orange));
-    background-size: 200% 100%;
-    animation: gradientShift 3s linear infinite;
-}
-
-/* ✅ ADD this animation */
-@keyframes gradientShift {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 200% 0%; }
-}
-
-/* ✅ ADD this - glowing badge animation */
-@keyframes glowPulse {
-    0%, 100% {
-        box-shadow: 0 0 20px rgba(255, 107, 53, 0.6), 0 0 40px rgba(255, 107, 53, 0.4);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 30px rgba(255, 107, 53, 0.8), 0 0 60px rgba(255, 107, 53, 0.6), 0 0 80px rgba(255, 107, 53, 0.4);
-        transform: scale(1.02);
-    }
-}
-
 /* ✅ UPDATED: More visible button */
 .coming-soon-toggle {
     width: 100%;
@@ -219,14 +188,13 @@ body {
 
 .coming-soon-toggle .coming-soon-badge {
     margin: 0;
-    box-shadow: 0 0 20px rgba(255, 107, 53, 0.6), 0 0 40px rgba(255, 107, 53, 0.4);
-    background: linear-gradient(135deg, var(--flame-orange), var(--deep-red));
-    padding: 8px 20px;
-    border-radius: var(--radius-md);
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    animation: none;
     font-size: 1rem;
     font-weight: 800;
-    animation: glowPulse 2s ease-in-out infinite;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 .toggle-icon {

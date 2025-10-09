@@ -473,6 +473,15 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
+// COMING SOON COLLAPSE/EXPAND
+function toggleComingSoon() {
+    const content = document.getElementById('comingSoonContent');
+    const icon = document.querySelector('.toggle-icon');
+    
+    content.classList.toggle('collapsed');
+    icon.classList.toggle('rotated');
+}
+
 // LIVE TIMESTAMP UPDATES
 setInterval(() => {
     document.querySelectorAll('.burn-time').forEach((element, index) => {
