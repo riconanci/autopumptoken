@@ -273,7 +273,7 @@ export async function getSystemStats(): Promise<SystemStats> {
       (SELECT total_claims FROM stats_total) as total_claims,
       (SELECT total_buybacks FROM stats_buybacks) as total_buybacks,
       (SELECT total_burns FROM stats_burns) as total_burns,
-      (SELECT MAX(timestamp) FROM claims WHERE status = 'confirmed') as last_claim_timestamp
+      (SELECT (EXTRACT(EPOCH FROM MAX(timestamp)) * 1000)::bigint FROM claims WHERE status = 'confirmed') as last_claim_timestamp
   `;
 
   const result = await pool.query(statsQuery);
@@ -282,27 +282,28 @@ export async function getSystemStats(): Promise<SystemStats> {
   const systemStatus = await getSystemStatus();
 
   return {
-    totalClaimedFees: Number(row.total_claimed_fees || 0) / 1e9, // Convert to SOL
+    totalClaimedFees: Number(row.total_claimed_fees || 0) / 1e9,
     totalTreasuryTransferred: Number(row.total_treasury_transferred || 0) / 1e9,
     totalBuybackSpent: Number(row.total_buyback_spent || 0) / 1e9,
     totalTokensBurned: row.total_tokens_burned || '0',
     totalClaims: Number(row.total_claims || 0),
     totalBuybacks: Number(row.total_buybacks || 0),
     totalBurns: Number(row.total_burns || 0),
-    lastClaimTimestamp: row.last_claim_timestamp ? new Date(row.last_claim_timestamp).getTime() : undefined,
-    nextCheckTimestamp: 0, // Will be set by scheduler
-    currentClaimableFees: 0, // Will be set by fee monitor
+    lastClaimTimestamp: row.last_claim_timestamp || undefined,
+    nextCheckTimestamp: 0,
+    currentClaimableFees: 0,
     systemStatus: systemStatus?.is_paused ? 'paused' : 'active',
   };
 }
 
+// ✅ FIXED: Timestamp conversion done in PostgreSQL to avoid timezone issues
 export async function getTransactionHistory(limit: number = 50): Promise<TransactionHistoryItem[]> {
   const query = `
     SELECT 
       'burn' as type,
       b.signature,
       b.tokens_burned as amount,
-      b.timestamp,
+      (EXTRACT(EPOCH FROM b.timestamp) * 1000)::bigint as timestamp,
       b.status,
       bb.sol_spent
     FROM burns b
@@ -318,9 +319,9 @@ export async function getTransactionHistory(limit: number = 50): Promise<Transac
     type: 'burn',
     signature: row.signature,
     amount: row.amount.toString(),
-    timestamp: new Date(row.timestamp).getTime(),
+    timestamp: Number(row.timestamp),  // ✅ Convert to number!
     status: row.status,
-    sol_spent: row.sol_spent ? Number(row.sol_spent) / 1e9 : 0, // ← Send raw number, NOT formatted string
+    sol_spent: row.sol_spent ? Number(row.sol_spent) / 1e9 : 0,
     explorerUrl: `https://solscan.io/tx/${row.signature}`,
   }));
 }

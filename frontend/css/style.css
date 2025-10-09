@@ -64,10 +64,18 @@ body {
 }
 
 .logo {
-    font-size: 5rem;
+    font-size: 5rem;  /* Remove this or keep for fallback */
     margin-bottom: var(--spacing-sm);
     animation: float 3s ease-in-out infinite;
     text-shadow: 0 0 30px var(--flame-orange);
+}
+
+/* Add this for image logo */
+.logo img {
+    width: 150px;  /* Adjust size as needed */
+    height: 150px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 30px var(--flame-orange));
 }
 
 .title {
