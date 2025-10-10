@@ -56,7 +56,7 @@ body {
 .hero {
     text-align: center;
     padding: var(--spacing-xl) 0;
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-xs);
 }
 
 .hero-content {
@@ -64,15 +64,15 @@ body {
 }
 
 .logo {
-    font-size: 5rem;  /* Remove this or keep for fallback */
-    margin-bottom: var(--spacing-sm);
+    font-size: 5rem;
+    margin-bottom: -1rem;
     animation: float 3s ease-in-out infinite;
     text-shadow: 0 0 30px var(--flame-orange);
 }
 
-/* Add this for image logo */
+/* Image logo styling */
 .logo img {
-    width: 150px;  /* Adjust size as needed */
+    width: 150px;
     height: 150px;
     object-fit: contain;
     filter: drop-shadow(0 0 30px var(--flame-orange));
@@ -85,7 +85,7 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: .5rem;
     letter-spacing: 2px;
 }
 
@@ -141,30 +141,127 @@ body {
     filter: drop-shadow(0 0 5px var(--flame-orange));
 }
 
-/* ✅ UPDATED: CENTERED CONTRACT LAYOUT */
+/* ✅ CENTERED CONTRACT LAYOUT */
 .token-info {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: var(--spacing-md);
     flex-wrap: wrap;
-    margin-top: var(--spacing-lg);
+    margin-top: var(--spacing-sm);
 }
 
-/* ✅ UPDATED: COMING SOON SECTION - Closer to address */
+.contract-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-left: 120px; /* Adjust this value to move contract left/right */
+}
+
+.contract-label {
+    color: var(--flame-orange);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
+}
+
+/* CLICKABLE CONTRACT ADDRESS BOX */
+.contract-address {
+    background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(247, 147, 30, 0.15));
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--flame-orange);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(255, 107, 53, 0.3);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Animated glow effect */
+.contract-address::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(255, 107, 53, 0.1),
+        transparent
+    );
+    animation: shimmer 3s infinite;
+}
+
+.contract-address:hover {
+    border-color: var(--deep-red);
+    box-shadow: 0 0 40px rgba(255, 107, 53, 0.6);
+    transform: scale(1.02);
+}
+
+.contract-address:active {
+    transform: scale(0.98);
+}
+
+/* Contract address text */
+.address {
+    font-family: 'Courier New', monospace;
+    color: var(--text-white);
+    font-size: 1.4rem;
+    font-weight: 700;
+    word-break: break-all;
+    line-height: 1.6;
+    text-align: center;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+    position: relative;
+    z-index: 1;
+    user-select: all;
+}
+
+/* ✅ LIVE INDICATOR - Aligned with contract box */
+.live-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: rgba(255, 107, 53, 0.1);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--flame-orange);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--flame-orange);
+    height: fit-content;
+    align-self: center;
+    margin-top: 25px; /* Adjust this value to move LIVE button up/down */
+}
+
+.pulse {
+    width: 10px;
+    height: 10px;
+    background: var(--flame-orange);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+/* COMING SOON SECTION */
 .coming-soon-section {
+    display: none;
     background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(247, 147, 30, 0.05));
     padding: var(--spacing-lg);
     border-radius: var(--radius-lg);
     border: 2px solid var(--flame-orange);
-    margin-top: var(--spacing-xs); /* ✅ Changed from var(--spacing-md) to minimize gap */
+    margin-top: var(--spacing-xs);
     margin-bottom: var(--spacing-xl);
     position: relative;
     overflow: hidden;
     animation: fadeInUp 0.8s ease-out 0.3s both;
 }
 
-/* ✅ ADD this - gradient border animation */
 .coming-soon-section::before {
     content: '';
     position: absolute;
@@ -177,25 +274,6 @@ body {
     animation: gradientShift 3s linear infinite;
 }
 
-/* ✅ ADD this animation */
-@keyframes gradientShift {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 200% 0%; }
-}
-
-/* ✅ ADD this - glowing badge animation */
-@keyframes glowPulse {
-    0%, 100% {
-        box-shadow: 0 0 20px rgba(255, 107, 53, 0.6), 0 0 40px rgba(255, 107, 53, 0.4);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 30px rgba(255, 107, 53, 0.8), 0 0 60px rgba(255, 107, 53, 0.6), 0 0 80px rgba(255, 107, 53, 0.4);
-        transform: scale(1.02);
-    }
-}
-
-/* ✅ UPDATED: More visible button */
 .coming-soon-toggle {
     width: 100%;
     background: rgba(255, 107, 53, 0.15);
@@ -252,104 +330,6 @@ body {
     max-height: 0;
     opacity: 0;
     margin-top: 0;
-}
-
-.contract-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-xs);
-    /* ✅ ADDED: Move contract more to the right for better centering */
-    margin-right: 50px;
-}
-
-.contract-label {
-    color: var(--flame-orange);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-weight: 700;
-}
-
-/* CLICKABLE CONTRACT ADDRESS BOX */
-.contract-address {
-    background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(247, 147, 30, 0.15));
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--radius-lg);
-    border: 2px solid var(--flame-orange);
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 0 30px rgba(255, 107, 53, 0.3);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-/* Animated glow effect */
-.contract-address::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-        45deg,
-        transparent,
-        rgba(255, 107, 53, 0.1),
-        transparent
-    );
-    animation: shimmer 3s infinite;
-}
-
-.contract-address:hover {
-    border-color: var(--deep-red);
-    box-shadow: 0 0 40px rgba(255, 107, 53, 0.6);
-    transform: scale(1.02);
-}
-
-.contract-address:active {
-    transform: scale(0.98);
-}
-
-/* BIGGER FONT for address */
-.address {
-    font-family: 'Courier New', monospace;
-    color: var(--text-white);
-    font-size: 1.4rem;
-    font-weight: 700;
-    word-break: break-all;
-    line-height: 1.6;
-    text-align: center;
-    letter-spacing: 1px;
-    text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
-    position: relative;
-    z-index: 1;
-    user-select: all;
-}
-
-/* ✅ UPDATED: LIVE indicator - vertically centered with contract box */
-.live-indicator {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    background: rgba(255, 107, 53, 0.1);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--radius-lg);
-    border: 2px solid var(--flame-orange);
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--flame-orange);
-    /* ✅ ADDED: Match height with contract box for vertical centering */
-    height: fit-content;
-    align-self: center;
-}
-
-.pulse {
-    width: 10px;
-    height: 10px;
-    background: var(--flame-orange);
-    border-radius: 50%;
-    animation: pulse 2s ease-in-out infinite;
 }
 
 /* METRICS SECTION */
@@ -771,7 +751,23 @@ body {
     }
 }
 
-/* ✅ UPDATED: RESPONSIVE */
+@keyframes gradientShift {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+@keyframes glowPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(255, 107, 53, 0.6), 0 0 40px rgba(255, 107, 53, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(255, 107, 53, 0.8), 0 0 60px rgba(255, 107, 53, 0.6), 0 0 80px rgba(255, 107, 53, 0.4);
+        transform: scale(1.02);
+    }
+}
+
+/* RESPONSIVE STYLES */
 @media (max-width: 768px) {
     .title { font-size: 2.5rem; }
     .subtitle { font-size: 1rem; }
@@ -803,13 +799,12 @@ body {
         font-size: 18px;
     }
     
-    /* ✅ ADDED: Reset margin on mobile */
-    .contract-wrapper {
-        margin-right: 0;
-    }
-    
     .token-info {
         flex-direction: column;
+    }
+    
+    .contract-wrapper {
+        margin-left: 0; /* Reset margin on mobile */
     }
 }
 
