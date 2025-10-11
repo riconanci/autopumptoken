@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "buildCommand": "npm install",
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
+    }
+  ],
+  "crons": [{
+    "path": "/api/cron/monitor-and-claim",
+    "schedule": "*/3 * * * *"
+  }]
+}

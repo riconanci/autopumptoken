@@ -68,7 +68,6 @@ pm2-*.log
 backup_*.sql
 
 # Wallet Files (CRITICAL - NEVER COMMIT!)
-*.json
 !package.json
 !package-lock.json
 !tsconfig.json
