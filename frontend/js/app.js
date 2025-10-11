@@ -1,7 +1,7 @@
 // AUTO BURN TEK - MAIN APPLICATION
 // Load config from config.js
 const CONFIG = typeof SITE_CONFIG !== 'undefined' ? SITE_CONFIG : {
-    API_BASE: 'https://autopump-backend-d0sd6bl89-riconancis-projects.vercel.app',
+    API_BASE: 'https://autopump-backend-v2-deyum8cnu-riconancis-projects.vercel.app',
     REFRESH_INTERVAL: 30000,
     TOKEN_MINT: '9AV236iTUAhkJz2vwjKW8rCTssdfdsfdsffsdfsdf7M4pump',
     TOTAL_SUPPLY: 1000000000,
@@ -100,7 +100,7 @@ function initializeSocialLinks() {
 async function fetchAndUpdateAllData() {
     try {
         console.log('Fetching data from backend...');
-        const response = await fetch(`${CONFIG.API_BASE}/stats/dashboard`);
+        const response = await fetch(`${CONFIG.API_BASE}/api/stats/dashboard`);
         if (!response.ok) throw new Error(`API returned ${response.status}`);
         const data = await response.json();
         if (!data.success) throw new Error(data.error || 'Unknown error');

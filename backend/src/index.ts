@@ -17,6 +17,22 @@ import adminRoutes from './routes/admin';
 const app = express();
 
 // ========================================
+// CORS - MUST BE FIRST!
+// ========================================
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
+// ========================================
 // MIDDLEWARE
 // ========================================
 
@@ -26,19 +42,6 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS - Allow requests from your frontend
-app.use(cors({
-  origin: [
-    'https://autopump-dashboard.vercel.app',
-    'https://autopump-dashboard-5niv6ez0u-riconancis-projects.vercel.app',
-    /\.vercel\.app$/,
-    'http://localhost:8000',
-    'http://localhost:3000'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
-}));
 
 // Body parsing
 app.use(express.json());

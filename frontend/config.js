@@ -9,15 +9,15 @@ const SITE_CONFIG = {
     TOTAL_SUPPLY: 1000000000,
     
     // API Configuration
-    API_BASE: '/api', // Will be https://yoursite.vercel.app/api
+    API_BASE: 'https://autopump-backend-v2-deyum8cnu-riconancis-projects.vercel.app', // Will be https://yoursite.vercel.app/api
     REFRESH_INTERVAL: 30000, // 30 seconds
     
     // Social Links (EDIT THESE!)
     LINKS: {
         PUMP_FUN: 'https://pump.fun/coin/9AV236iTUAhkJz2vwjKW8rCTsgH7TDNU9CiY67M4pump',
         TWITTER: 'https://x.com/AutoBurnTek',  // ← CHANGES X
-        WEBSITE: 'https://autopumptoken.vercel.app',              // ← OPTIONAL: Add your site
-        TELEGRAM: 'https://t.me/YourTelegramGroup'       // ← OPTIONAL: Add your TG
+    //    WEBSITE: 'https://autopumptoken.vercel.app',              // ← OPTIONAL: Add your site
+    //    TELEGRAM: 'https://t.me/YourTelegramGroup'       // ← OPTIONAL: Add your TG
     },
     
     // Display Settings
