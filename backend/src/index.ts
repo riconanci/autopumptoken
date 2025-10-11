@@ -28,12 +28,13 @@ app.use(helmet({
 
 // CORS - Allow requests from your frontend
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://your-frontend.vercel.app', // Replace with your actual frontend URL
-        /\.vercel\.app$/ // Allow all Vercel preview deployments
-      ]
-    : '*', // Allow all origins in development
+  origin: [
+    'https://autopump-dashboard.vercel.app',
+    'https://autopump-dashboard-5niv6ez0u-riconancis-projects.vercel.app',
+    /\.vercel\.app$/,
+    'http://localhost:8000',
+    'http://localhost:3000'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],

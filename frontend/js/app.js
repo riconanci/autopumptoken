@@ -1,7 +1,7 @@
 // AUTO BURN TEK - MAIN APPLICATION
 // Load config from config.js
 const CONFIG = typeof SITE_CONFIG !== 'undefined' ? SITE_CONFIG : {
-    API_BASE: '/api',
+    API_BASE: 'https://autopump-backend-d0sd6bl89-riconancis-projects.vercel.app',
     REFRESH_INTERVAL: 30000,
     TOKEN_MINT: '9AV236iTUAhkJz2vwjKW8rCTssdfdsfdsffsdfsdf7M4pump',
     TOTAL_SUPPLY: 1000000000,
