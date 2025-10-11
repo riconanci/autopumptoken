@@ -1,7 +1,7 @@
 {
   "name": "autopump-backend",
   "version": "1.0.0",
-  "description": "Auto Pump Token - Automated Deflationary Buyback System",
+  "description": "Auto Pump Tek - Automated Deflationary Buyback System",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
