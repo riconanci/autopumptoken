@@ -5,6 +5,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Debug: Check which env vars exist
+  const debug = {
+    hasDATABASE_URL: !!process.env.DATABASE_URL,
+    hasPOSTGRES_URL: !!process.env.POSTGRES_URL,
+    hasPOSTGRES_PRISMA_URL: !!process.env.POSTGRES_PRISMA_URL
+  };
+  
+  console.log('Environment check:', debug);
+
   try {
     // Get system stats
     const statsResult = await sql`
@@ -37,6 +46,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       success: true,
+      debug, // Include debug info
       data: {
         stats: {
           totalTokensBurned: stats.total_tokens_burned || '0',
@@ -63,6 +73,7 @@ export default async function handler(req, res) {
     res.status(500).json({ 
       success: false, 
       error: error.message,
+      debug, // Include debug info even on error
       hint: 'Database may not be initialized. Visit /api/admin/init-db first'
     });
   }
