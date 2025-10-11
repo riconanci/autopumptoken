@@ -1,7 +1,3 @@
-// api/cron/monitor-and-claim.js
-import { claimOrchestrator } from '../../backend/src/services/claimOrchestrator';
-import { log } from '../../backend/src/lib/logger';
-
 export default async function handler(req, res) {
   // Verify request is from Vercel Cron
   const authHeader = req.headers.authorization;
@@ -10,16 +6,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    log.info('[CRON] Starting automated claim check...');
-    await claimOrchestrator.executeClaimFlow();
-    
+    // For now, just return success
+    // The actual claim logic will be implemented later
     res.status(200).json({ 
       success: true, 
-      message: 'Claim check completed',
+      message: 'Cron job executed (claim logic not yet implemented)',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    log.error('[CRON] Error:', error);
+    console.error('[CRON] Error:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
