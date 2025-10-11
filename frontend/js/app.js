@@ -75,7 +75,7 @@ function initializeSocialLinks() {
     // Twitter/X link - Changed to "X"
     if (CONFIG.LINKS.TWITTER) {
         linksHTML += `<a href="${CONFIG.LINKS.TWITTER}" target="_blank" rel="noopener" class="social-link">
-            <span class="social-icon">𝕏</span> X
+            <span class="social-icon">𝕏</span> 
         </a>`;
     }
     

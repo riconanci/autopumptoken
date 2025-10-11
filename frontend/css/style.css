@@ -109,8 +109,11 @@ body {
 .social-link {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 12px 24px;
+    padding: 10px 20px;
+    width: 140px;
+    height: 48px;
     background: rgba(255, 107, 53, 0.1);
     border: 2px solid rgba(255, 107, 53, 0.3);
     border-radius: var(--radius-md);

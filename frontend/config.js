@@ -9,7 +9,7 @@ const SITE_CONFIG = {
     TOTAL_SUPPLY: 1000000000,
     
     // API Configuration
-    API_BASE: 'http://localhost:3000/api',
+    API_BASE: '/api', // Will be https://yoursite.vercel.app/api
     REFRESH_INTERVAL: 30000, // 30 seconds
     
     // Social Links (EDIT THESE!)
