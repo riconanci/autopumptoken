@@ -168,15 +168,25 @@ export async function updateBurnStatus(
 export async function insertMonitorCheck(
   claimableFees: number,
   threshold: number,
-  triggered: boolean,
-  notes?: string
+  thresholdMet: boolean
 ): Promise<void> {
-  const query = `
-    INSERT INTO monitor_checks (claimable_fees, threshold, triggered, notes)
-    VALUES ($1, $2, $3, $4)
-  `;
-
-  await pool.query(query, [claimableFees, threshold, triggered, notes]);
+  // Disabled for quick launch - just log instead
+  log.info('Monitor check (not saved to DB)', { 
+    claimableFees, 
+    threshold, 
+    thresholdMet 
+  });
+  return;
+  
+  // Original code commented out:
+  // try {
+  //   await pool.query(
+  //     `INSERT INTO monitor_checks (claimable_fees, threshold, threshold_met) VALUES ($1, $2, $3)`,
+  //     [claimableFees, threshold, thresholdMet]
+  //   );
+  // } catch (error) {
+  //   log.error('Failed to insert monitor check', error);
+  // }
 }
 
 export async function getRecentMonitorChecks(limit: number = 100): Promise<MonitorCheck[]> {
