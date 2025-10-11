@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "vercel-build": "tsc",
+    "vercel-build": "echo 'Build handled by Vercel'",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "jest"
@@ -45,6 +45,7 @@
     "@types/pg": "^8.10.9",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
+    "@vercel/node": "^5.3.26",
     "eslint": "^8.56.0",
     "jest": "^29.7.0",
     "ts-node": "^10.9.2",
