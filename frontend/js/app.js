@@ -1,14 +1,14 @@
 // AUTO BURN TEK - MAIN APPLICATION
 // Load config from config.js
 const CONFIG = typeof SITE_CONFIG !== 'undefined' ? SITE_CONFIG : {
-    API_BASE: 'http://localhost:3000/api',
+    API_BASE: '/api',
     REFRESH_INTERVAL: 30000,
     TOKEN_MINT: '9AV236iTUAhkJz2vwjKW8rCTssdfdsfdsffsdfsdf7M4pump',
     TOTAL_SUPPLY: 1000000000,
     TOKEN_SYMBOL: 'ABT',
     LINKS: {
         PUMP_FUN: 'https://pump.fun/coin/9AV236iTUAhkJz2vwjKW8rCTsgH7TDNU9CiY67M4pump',
-        TWITTER: 'https://twitter.com/YourTokenHandle'
+        TWITTER: 'https://x.com/AutoBurnTek'
     },
     DISPLAY: {
         SHOW_FULL_ADDRESS: true,

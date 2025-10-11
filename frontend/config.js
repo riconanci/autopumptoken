@@ -15,7 +15,7 @@ const SITE_CONFIG = {
     // Social Links (EDIT THESE!)
     LINKS: {
         PUMP_FUN: 'https://pump.fun/coin/9AV236iTUAhkJz2vwjKW8rCTsgH7TDNU9CiY67M4pump',
-        TWITTER: 'https://twitter.com/YourTokenHandle',  // ← CHANGES X
+        TWITTER: 'https://x.com/AutoBurnTek',  // ← CHANGES X
         WEBSITE: 'https://yourwebsite.com',              // ← OPTIONAL: Add your site
         TELEGRAM: 'https://t.me/YourTelegramGroup'       // ← OPTIONAL: Add your TG
     },
