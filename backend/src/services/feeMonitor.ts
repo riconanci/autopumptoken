@@ -18,7 +18,6 @@ export async function checkClaimableFees(): Promise<ClaimableFeesResponse> {
       Math.floor(feesResponse.claimableFees * 1e9), // Convert to lamports
       Math.floor(claimThresholdSol * 1e9),
       feesResponse.claimableFees >= claimThresholdSol,
-      `Claimable: ${feesResponse.claimableFees} SOL`
     );
 
     log.monitor('Fee check complete', {
