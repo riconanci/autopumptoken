@@ -16,6 +16,81 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Animated text styles - Mobile optimized */
+        .subtitle .grow {
+            color: #00ff88;
+            font-weight: 700;
+            animation: pulseGreen 2s ease-in-out infinite;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            will-change: opacity, text-shadow;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .subtitle .burn {
+            color: #ff3333;
+            font-weight: 700;
+            animation: pulseRed 2s ease-in-out infinite;
+            text-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+            will-change: opacity, text-shadow;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        @keyframes pulseGreen {
+            0%, 100% {
+                opacity: 1;
+                text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            }
+            50% {
+                opacity: 0.8;
+                text-shadow: 0 0 20px rgba(0, 255, 136, 0.8), 0 0 30px rgba(0, 255, 136, 0.4);
+            }
+        }
+
+        @keyframes pulseRed {
+            0%, 100% {
+                opacity: 1;
+                text-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+            }
+            50% {
+                opacity: 0.8;
+                text-shadow: 0 0 20px rgba(255, 51, 51, 0.8), 0 0 30px rgba(255, 51, 51, 0.4);
+            }
+        }
+
+        /* Glowing title effect - Mobile optimized */
+        .title {
+            animation: titleGlow 3s ease-in-out infinite;
+            will-change: text-shadow;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        @keyframes titleGlow {
+            0%, 100% {
+                text-shadow: 
+                    0 0 20px rgba(255, 107, 53, 0.5),
+                    0 0 40px rgba(255, 107, 53, 0.3),
+                    0 0 60px rgba(255, 107, 53, 0.2);
+            }
+            50% {
+                text-shadow: 
+                    0 0 30px rgba(255, 107, 53, 0.8),
+                    0 0 60px rgba(255, 107, 53, 0.5),
+                    0 0 90px rgba(255, 107, 53, 0.3),
+                    0 0 120px rgba(255, 107, 53, 0.2);
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Particle Canvas Background -->
@@ -31,7 +106,7 @@
                     <img src="assets/logo.png" alt="Auto Burn Tek Logo">
                 </div>
                 <h1 class="title">AUTO BURN TEK</h1>
-                <p class="subtitle">Watching Your Investment Grow By Watching Supply Shrink</p>
+                <p class="subtitle">Watching Your Investment <span class="grow">Grow</span> By Watching Supply <span class="burn">Burn</span></p>
                 
                 <!-- Social Links -->
                 <div id="socialLinks" class="social-links"></div>

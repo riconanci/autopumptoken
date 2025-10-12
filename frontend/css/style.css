@@ -231,7 +231,7 @@ body {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
-    background: rgba(255, 107, 53, 0.1);
+    background: rgba(255, 53, 53, 0.1);
     padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--radius-lg);
     border: 2px solid var(--flame-orange);
@@ -246,9 +246,10 @@ body {
 .pulse {
     width: 10px;
     height: 10px;
-    background: var(--flame-orange);
+    background: #ff3333; /* Changed to red */
     border-radius: 50%;
-    animation: pulse 2s ease-in-out infinite;
+    animation: pulseLive 2s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(255, 51, 51, 0.8);
 }
 
 /* COMING SOON SECTION */
