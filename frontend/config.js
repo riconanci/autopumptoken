@@ -3,7 +3,7 @@
 
 const SITE_CONFIG = {
     // Token Information
-    TOKEN_MINT: '1111xyjA7xi113Mw1hJTx2YswKVsy9PgkKqKgKdPpump',
+    TOKEN_MINT: '7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
     TOKEN_SYMBOL: 'ABT',
     TOKEN_NAME: 'Auto Burn Tek',
     TOTAL_SUPPLY: 1000000000,
@@ -14,7 +14,7 @@ const SITE_CONFIG = {
     
     // Social Links (EDIT THESE!)
     LINKS: {
-        PUMP_FUN: 'https://pump.fun/coin/1111xyjA7xi113Mw1hJTx2YswKVsy9PgkKqKgKdPpump',
+        PUMP_FUN: 'https://pump.fun/coin/7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
         TWITTER: 'https://x.com/AutoBurnTek',  // ← CHANGES X
     //    WEBSITE: 'https://autopumptoken.vercel.app',              // ← OPTIONAL: Add your site
     //    TELEGRAM: 'https://t.me/YourTelegramGroup'       // ← OPTIONAL: Add your TG

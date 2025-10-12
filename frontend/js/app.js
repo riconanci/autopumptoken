@@ -3,11 +3,11 @@
 const CONFIG = typeof SITE_CONFIG !== 'undefined' ? SITE_CONFIG : {
     API_BASE: 'https://autopump-backend-v2-deyum8cnu-riconancis-projects.vercel.app',
     REFRESH_INTERVAL: 30000,
-    TOKEN_MINT: '1111xyjA7xi113Mw1hJTx2YswKVsy9PgkKqKgKdPpump',
+    TOKEN_MINT: '7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
     TOTAL_SUPPLY: 1000000000,
     TOKEN_SYMBOL: 'ABT',
     LINKS: {
-        PUMP_FUN: 'https://pump.fun/coin/1111xyjA7xi113Mw1hJTx2YswKVsy9PgkKqKgKdPpump',
+        PUMP_FUN: 'https://pump.fun/coin/7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
         TWITTER: 'https://x.com/AutoBurnTek'
     },
     DISPLAY: {
