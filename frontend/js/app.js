@@ -96,6 +96,154 @@ function initializeSocialLinks() {
     linksContainer.innerHTML = linksHTML;
 }
 
+// Fetch and display market cap
+// Update market cap display for bonding phase tokens
+function updateMarketCap(data) {
+    try {
+        const marketCapElement = document.getElementById('marketCapValue');
+        if (!marketCapElement) return;
+        
+        console.log('Checking for market cap in data:', data);
+        
+        // Check if market cap data exists in backend response
+        if (data && data.tokenInfo && data.tokenInfo.marketCap) {
+            const marketCap = data.tokenInfo.marketCap;
+            marketCapElement.textContent = formatMarketCap(marketCap);
+        } else {
+            // Fetch from external sources
+            fetchMarketCapExternal();
+        }
+    } catch (error) {
+        console.error('Error updating market cap:', error);
+        const marketCapElement = document.getElementById('marketCapValue');
+        if (marketCapElement) {
+            marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
+        }
+    }
+}
+
+// Fetch market cap from external sources (Pump.fun or DexScreener)
+async function fetchMarketCapExternal() {
+    const marketCapElement = document.getElementById('marketCapValue');
+    if (!marketCapElement) return;
+    
+    // STEP 1: Try Pump.fun API (for bonding curve)
+    try {
+        const pumpResponse = await fetch(`https://frontend-api.pump.fun/coins/${CONFIG.TOKEN_MINT}`);
+        if (pumpResponse.ok) {
+            const pumpData = await pumpResponse.json();
+            console.log('Pump.fun API response:', pumpData);
+            
+            if (pumpData && pumpData.usd_market_cap) {
+                marketCapElement.textContent = formatMarketCap(pumpData.usd_market_cap);
+                return; // ✅ Success, exit
+            }
+        }
+    } catch (e) {
+        console.log('Pump.fun API unavailable, trying DexScreener...');
+    }
+    
+    // STEP 2: Try DexScreener (for graduated tokens on Raydium)
+    try {
+        const dexResponse = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${CONFIG.TOKEN_MINT}`);
+        if (dexResponse.ok) {
+            const dexData = await dexResponse.json();
+            console.log('DexScreener API response:', dexData);
+            
+            if (dexData && dexData.pairs && dexData.pairs.length > 0) {
+                const pair = dexData.pairs[0];
+                const marketCap = pair.marketCap || pair.fdv;
+                
+                if (marketCap) {
+                    marketCapElement.textContent = formatMarketCap(marketCap);
+                    return; // ✅ Success, exit
+                }
+            }
+        }
+    } catch (e) {
+        console.log('DexScreener also unavailable');
+    }
+    
+    // STEP 3: Fallback - Show bonding phase
+    marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
+}
+
+// Fetch market cap from Pump.fun for bonding curve tokens
+async function fetchPumpFunMarketCap() {
+    try {
+        const marketCapElement = document.getElementById('marketCapValue');
+        if (!marketCapElement) return;
+        
+        // Try method 1: Direct API
+        try {
+            const response = await fetch(`https://frontend-api.pump.fun/coins/${CONFIG.TOKEN_MINT}`);
+            const data = await response.json();
+            console.log('Pump.fun API response:', data);
+            
+            if (data && data.usd_market_cap) {
+                const marketCap = data.usd_market_cap;
+                marketCapElement.textContent = formatMarketCap(marketCap);
+                return;
+            }
+        } catch (e) {
+            console.log('Pump.fun API failed, trying alternative...');
+        }
+        
+        // Method 2: Try pump.fun trading endpoint
+        try {
+            const response = await fetch(`https://pump.fun/api/coins/${CONFIG.TOKEN_MINT}`);
+            const data = await response.json();
+            console.log('Pump.fun trading API response:', data);
+            
+            if (data && data.market_cap) {
+                marketCapElement.textContent = formatMarketCap(data.market_cap);
+                return;
+            }
+        } catch (e) {
+            console.log('Trading API also failed');
+        }
+        
+        // Fallback: Show bonding phase
+        marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
+        
+    } catch (error) {
+        console.error('Error fetching market cap:', error);
+        const marketCapElement = document.getElementById('marketCapValue');
+        if (marketCapElement) {
+            marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
+        }
+    }
+}
+
+// Helper function to format market cap
+function formatMarketCap(marketCap) {
+    if (marketCap >= 1000000) {
+        return `$${(marketCap / 1000000).toFixed(2)}M`;
+    } else if (marketCap >= 1000) {
+        return `$${(marketCap / 1000).toFixed(1)}K`;
+    } else {
+        return `$${marketCap.toFixed(2)}`;
+    }
+}
+
+// Call it on page load and with the 30-second refresh
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🔥 Auto Burn Tek Dashboard Initializing...');
+    displayContractAddress();
+    initializeSocialLinks();
+    
+    // ✅ ADD THESE LINES - Initialize token address in share section
+    const tokenAddressElement = document.getElementById('shareTokenAddress');
+    if (tokenAddressElement) {
+        tokenAddressElement.textContent = CONFIG.TOKEN_MINT;
+    }
+    
+    initializeBurnChart();
+    await fetchAndUpdateAllData();
+    startAutoRefresh();
+    console.log('✅ Dashboard loaded successfully');
+});
+
 // DATA FETCHING
 async function fetchAndUpdateAllData() {
     try {
@@ -110,6 +258,7 @@ async function fetchAndUpdateAllData() {
         updateChart(data.data.burnChartData);
         updateBurnsFeed(data.data.recentTransactions);
         updateShareText(data.data.stats, data.data.recentTransactions);
+        updateMarketCap(data.data); // ✅ ADD THIS LINE - uses data already fetched
     } catch (error) {
         console.error('Error fetching data:', error);
         showNotification('Failed to load data. Retrying...', 'error');
@@ -224,6 +373,11 @@ function update24HourStats(transactions) {
 
 // CHART INITIALIZATION
 function initializeBurnChart() {
+    // ✅ Destroy existing chart if it exists to prevent canvas reuse error
+    if (burnChart) {
+        burnChart.destroy();
+    }
+    
     const ctx = document.getElementById('burnChart').getContext('2d');
     burnChart = new Chart(ctx, {
         type: 'line',
@@ -372,8 +526,15 @@ function updateShareText(stats, transactions) {
     const totalBurned = formatNumber(stats.totalTokensBurned || 0);
     const lastBurn = transactions.find(tx => tx.type === 'burn' && tx.status === 'confirmed');
     const lastBurnAmount = lastBurn ? formatNumber(lastBurn.amount) : '0';
+    
     document.getElementById('shareLastBurn').textContent = lastBurnAmount;
     document.getElementById('shareTotalBurned').textContent = totalBurned;
+    
+    // ✅ ADD THIS LINE - Update token address
+    const tokenAddressElement = document.getElementById('shareTokenAddress');
+    if (tokenAddressElement) {
+        tokenAddressElement.textContent = CONFIG.TOKEN_MINT;
+    }
 }
 
 // SHARE FUNCTIONS
@@ -387,7 +548,18 @@ function copyShareText() {
 function shareOnTwitter() {
     const lastBurn = document.getElementById('shareLastBurn').textContent;
     const totalBurned = document.getElementById('shareTotalBurned').textContent;
-    const tweetText = `🔥 Just burned ${lastBurn} $${CONFIG.TOKEN_SYMBOL} tokens!\n\n${totalBurned} tokens permanently destroyed so far.\n\nWatch the supply shrink LIVE at autopumptek.com 🔥\n\n#AutoBurnTek #Deflationary #Solana`;
+    
+    // ✅ Updated tweet text with your changes
+    const tweetText = `🔥 Just burned ${lastBurn} $${CONFIG.TOKEN_SYMBOL} tokens!
+
+${totalBurned} tokens permanently destroyed so far.
+
+Watch the supply burn LIVE at autopump-dashboard.vercel.app 🔥
+
+$ABT ${CONFIG.TOKEN_MINT}
+
+#AutoBurnTek #Deflationary #Solana`;
+    
     const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
     window.open(tweetUrl, '_blank', 'width=550,height=420');
 }

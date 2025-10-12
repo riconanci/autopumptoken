@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Auto Burn Tek - Watch our deflationary token burn in real-time. Live burn tracking on Solana.">
-    <title>🔥 Auto Burn Tek | Deflationary Token Dashboard</title>
+    <title>Auto Burn Tek | Deflationary Token Dashboard</title>
     
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
     <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
     
@@ -90,6 +92,121 @@
                     0 0 120px rgba(255, 107, 53, 0.2);
             }
         }
+
+        /* Market Cap Display */
+        .market-cap-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.15), rgba(247, 147, 30, 0.15));
+            padding: 1.25rem 2rem;
+            border-radius: 16px;
+            border: 2px solid var(--flame-orange);
+            margin: 1.5rem auto;
+            max-width: 500px;
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .market-cap-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(255, 107, 53, 0.1),
+                transparent
+            );
+            animation: shimmer 3s infinite;
+        }
+
+        .market-cap-logo {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 15px var(--flame-orange));
+            position: relative;
+            z-index: 1;
+        }
+
+        .market-cap-content {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+            z-index: 1;
+        }
+
+        .market-cap-label {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .market-cap-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--flame-orange), var(--deep-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.5px;
+        }
+
+        .market-cap-loading {
+            color: var(--text-gray);
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        @media (min-width: 769px) {
+            .market-cap-section .market-cap-content .market-cap-label {
+                position: relative;
+            }
+
+            .market-cap-logo {
+                width: 40px;
+                height: 40px;
+            }
+
+            .market-cap-label {
+                margin-left: -70px;
+                width: calc(100% + 90px);
+                transform: translateY(-10px) !important;
+                font-size: 1.5rem;
+            }
+
+            .market-cap-value {
+                font-size: 1.4rem;
+                transform: translateY(-10px)
+            }
+        }
+
+        @media (max-width: 480px) {
+            .market-cap-section {
+                flex-direction: column;
+                gap: 0.75rem;
+                padding: 1rem;
+            }
+
+            .market-cap-content {
+                align-items: center;
+                text-align: center;
+            }
+
+            .market-cap-value {
+                font-size: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -107,6 +224,17 @@
                 </div>
                 <h1 class="title">AUTO BURN TEK</h1>
                 <p class="subtitle">Watching Your Investment <span class="grow">Grow</span> By Watching Supply <span class="burn">Burn</span></p>
+                
+                <!-- Market Cap Display -->
+                <div class="market-cap-section">
+                    <img src="assets/logo.png" alt="ABT Logo" class="market-cap-logo">
+                    <div class="market-cap-content">
+                        <div class="market-cap-label">Market Cap</div>
+                        <div class="market-cap-value" id="marketCapValue">
+                            <span class="market-cap-loading">Loading...</span>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Social Links -->
                 <div id="socialLinks" class="social-links"></div>
@@ -141,7 +269,7 @@
                     </div>
                     <p class="coming-soon-description">
                         Soon, ANY Pump.fun token creator can leverage our automated deflationary system. 
-                        Pay using <strong>$ABT tokens</strong>, which are <strong>permanently burned</strong> upon payment—creating 
+                        Pay using <strong>AutoBurnTek tokens</strong>, which are <strong>permanently burned</strong> upon payment—creating 
                         double deflationary pressure while powering the ecosystem.
                     </p>
                     <div class="coming-soon-features">
@@ -266,9 +394,11 @@
             <h2 class="section-title">Share the Burn! 🔥</h2>
             <div class="share-card">
                 <div class="share-preview" id="sharePreview">
-                    🔥 Just burned <span id="shareLastBurn">0</span> $ABT tokens!<br>
+                    🔥 Just burned <span id="shareLastBurn">0</span> AutoBurnTek tokens!<br>
                     <span id="shareTotalBurned">0</span> tokens permanently destroyed so far.<br>
-                    Watch the supply shrink LIVE at autopumptek.com 🔥
+                    Watch the supply burn LIVE at autopump-dashboard.vercel.app 🔥<br>
+                    <br>
+                    $ABT <span id="shareTokenAddress" style="font-size: 0.85em; opacity: 0.8;">Loading...</span>
                 </div>
                 <div class="share-buttons">
                     <button class="share-btn copy" onclick="copyShareText()">📋 Copy Text</button>
