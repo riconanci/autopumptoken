@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Auto Buy n Burn - Watch our deflationary token burn in real-time. Live burn tracking on Solana.">
-    <title>Auto Buy n Burn | Deflationary Token Dashboard</title>
+    <meta name="description" content="Auto Burn Tek - Watch our deflationary token burn in real-time. Live burn tracking on Solana.">
+    <title>Auto Burn Tek | Deflationary Token Dashboard</title>
     
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
 
@@ -222,7 +222,7 @@
                 <div class="logo">
                     <img src="assets/logo.png" alt="Auto Burn Tek Logo">
                 </div>
-                <h1 class="title">Auto Buy n Burn</h1>
+                <h1 class="title">AUTO BURN TEK</h1>
                 <p class="subtitle">Watching Your Investment <span class="grow">Grow</span> By Watching Supply <span class="burn">Burn</span></p>
                 
                 <!-- Market Cap Display -->
@@ -265,7 +265,7 @@
                 <div class="coming-soon-card">
                     <div class="coming-soon-header">
                         <span class="coming-soon-icon">⚡</span>
-                        <h3 class="coming-soon-subtitle">Deploy Auto Buy n Burn on YOUR Pump.fun Token</h3>
+                        <h3 class="coming-soon-subtitle">Deploy Auto Burn TEK on YOUR Pump.fun Token</h3>
                     </div>
                     <p class="coming-soon-description">
                         Soon, ANY Pump.fun token creator can leverage our automated deflationary system. 
@@ -389,6 +389,28 @@
             <button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreBurns()" style="display: none;">📜 Load More Burns</button>
         </section>
 
+        <!-- Share Section -->
+        <section class="share-section">
+            <h2 class="section-title">Share the Burn! 🔥</h2>
+            <div class="share-card">
+                <div class="share-preview" id="sharePreview">
+                    🔥 Just burned <span id="shareLastBurn">0</span> AutoBurnTek tokens!<br>
+                    <span id="shareTotalBurned">0</span> tokens permanently destroyed so far.<br>
+                    Watch the supply burn LIVE at autopump-dashboard.vercel.app 🔥<br>
+                    <br>
+                    $ABT <span id="shareTokenAddress" style="font-size: 0.85em; opacity: 0.8;">Loading...</span>
+                </div>
+                <div class="share-buttons">
+                    <button class="share-btn copy" onclick="copyShareText()">📋 Copy Text</button>
+                    <button class="share-btn tweet" onclick="shareOnTwitter()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                        Tweet This
+                    </button>
+                </div>
+            </div>
+        </section>
 
         <!-- Footer -->
         <footer class="footer">

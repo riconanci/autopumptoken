@@ -1,14 +1,14 @@
 // AUTO BURN TEK - MAIN APPLICATION
 // Load config from config.js
 const CONFIG = typeof SITE_CONFIG !== 'undefined' ? SITE_CONFIG : {
-    API_BASE: 'https://autopump-backend-v2-deyum8cnu-riconancis-projects.vercel.app',
+    API_BASE: 'https://autopump-backend-v2-nin6onggy-riconancis-projects.vercel.app',
     REFRESH_INTERVAL: 30000,
-    TOKEN_MINT: '7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
+    TOKEN_MINT: '5eDu5oWPgZGoynAxfjfBGU2iNU4X2G7FAucgSa9Apump',
     TOTAL_SUPPLY: 1000000000,
-    TOKEN_SYMBOL: 'ABT',
+    TOKEN_SYMBOL: 'ABnB',
     LINKS: {
-        PUMP_FUN: 'https://pump.fun/coin/7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
-        TWITTER: 'https://x.com/AutoBurnTek'
+        PUMP_FUN: 'https://pump.fun/coin/5eDu5oWPgZGoynAxfjfBGU2iNU4X2G7FAucgSa9Apump',
+        TWITTER: 'https://x.com/AutoBuynBurn'
     },
     DISPLAY: {
         SHOW_FULL_ADDRESS: true,
@@ -99,72 +99,106 @@ function initializeSocialLinks() {
 // Fetch and display market cap
 // Update market cap display for bonding phase tokens
 function updateMarketCap(data) {
+    console.log('🚀 updateMarketCap called with:', data);
+    
     try {
         const marketCapElement = document.getElementById('marketCapValue');
-        if (!marketCapElement) return;
-        
-        console.log('Checking for market cap in data:', data);
-        
+        if (!marketCapElement) {
+            console.log('❌ Market cap element not found in DOM');
+            return;
+        }
+
+        console.log('✅ Market cap element found, checking data for market cap...');
+
         // Check if market cap data exists in backend response
         if (data && data.tokenInfo && data.tokenInfo.marketCap) {
             const marketCap = data.tokenInfo.marketCap;
+            console.log('💰 Market cap found in backend data:', marketCap);
             marketCapElement.textContent = formatMarketCap(marketCap);
         } else {
+            console.log('⚠️ No market cap in backend data, fetching from external APIs...');
             // Fetch from external sources
             fetchMarketCapExternal();
         }
     } catch (error) {
-        console.error('Error updating market cap:', error);
-        const marketCapElement = document.getElementById('marketCapValue');
-        if (marketCapElement) {
-            marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
-        }
+        console.error('❌ Error in updateMarketCap:', error);
+        console.log('🔄 Falling back to external API fetch...');
+        fetchMarketCapExternal();
     }
 }
 
 // Fetch market cap from external sources (Pump.fun or DexScreener)
 async function fetchMarketCapExternal() {
     const marketCapElement = document.getElementById('marketCapValue');
-    if (!marketCapElement) return;
+    if (!marketCapElement) {
+        console.log('⚠️ Market cap element not found in DOM');
+        return;
+    }
+    
+    console.log('🔍 Starting market cap fetch for token:', CONFIG.TOKEN_MINT);
     
     // STEP 1: Try Pump.fun API (for bonding curve)
     try {
-        const pumpResponse = await fetch(`https://frontend-api.pump.fun/coins/${CONFIG.TOKEN_MINT}`);
+        const pumpUrl = `https://frontend-api.pump.fun/coins/${CONFIG.TOKEN_MINT}`;
+        console.log('📡 Trying Pump.fun API:', pumpUrl);
+        
+        const pumpResponse = await fetch(pumpUrl);
+        console.log('📊 Pump.fun response status:', pumpResponse.status);
+        
         if (pumpResponse.ok) {
             const pumpData = await pumpResponse.json();
-            console.log('Pump.fun API response:', pumpData);
+            console.log('✅ Pump.fun API response:', pumpData);
             
             if (pumpData && pumpData.usd_market_cap) {
+                console.log('💰 Market cap found:', pumpData.usd_market_cap);
                 marketCapElement.textContent = formatMarketCap(pumpData.usd_market_cap);
                 return; // ✅ Success, exit
+            } else {
+                console.log('⚠️ No usd_market_cap field in Pump.fun response');
             }
+        } else {
+            console.log('❌ Pump.fun API returned error status:', pumpResponse.status);
         }
     } catch (e) {
-        console.log('Pump.fun API unavailable, trying DexScreener...');
+        console.error('❌ Pump.fun API error:', e.message);
+        console.log('🔄 Trying DexScreener...');
     }
     
     // STEP 2: Try DexScreener (for graduated tokens on Raydium)
     try {
-        const dexResponse = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${CONFIG.TOKEN_MINT}`);
+        const dexUrl = `https://api.dexscreener.com/latest/dex/tokens/${CONFIG.TOKEN_MINT}`;
+        console.log('📡 Trying DexScreener API:', dexUrl);
+        
+        const dexResponse = await fetch(dexUrl);
+        console.log('📊 DexScreener response status:', dexResponse.status);
+        
         if (dexResponse.ok) {
             const dexData = await dexResponse.json();
-            console.log('DexScreener API response:', dexData);
+            console.log('✅ DexScreener API response:', dexData);
             
             if (dexData && dexData.pairs && dexData.pairs.length > 0) {
                 const pair = dexData.pairs[0];
                 const marketCap = pair.marketCap || pair.fdv;
                 
                 if (marketCap) {
+                    console.log('💰 Market cap found from DexScreener:', marketCap);
                     marketCapElement.textContent = formatMarketCap(marketCap);
                     return; // ✅ Success, exit
+                } else {
+                    console.log('⚠️ No marketCap or fdv in DexScreener pair');
                 }
+            } else {
+                console.log('⚠️ No pairs found in DexScreener response');
             }
+        } else {
+            console.log('❌ DexScreener API returned error status:', dexResponse.status);
         }
     } catch (e) {
-        console.log('DexScreener also unavailable');
+        console.error('❌ DexScreener API error:', e.message);
     }
     
     // STEP 3: Fallback - Show bonding phase
+    console.log('📊 No market cap data found, displaying bonding phase');
     marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
 }
 
@@ -172,42 +206,65 @@ async function fetchMarketCapExternal() {
 async function fetchPumpFunMarketCap() {
     try {
         const marketCapElement = document.getElementById('marketCapValue');
-        if (!marketCapElement) return;
+        if (!marketCapElement) {
+            console.log('⚠️ Market cap element not found');
+            return;
+        }
+        
+        console.log('🔍 Fetching Pump.fun market cap for:', CONFIG.TOKEN_MINT);
         
         // Try method 1: Direct API
         try {
-            const response = await fetch(`https://frontend-api.pump.fun/coins/${CONFIG.TOKEN_MINT}`);
+            const url1 = `https://frontend-api.pump.fun/coins/${CONFIG.TOKEN_MINT}`;
+            console.log('📡 Method 1 - Direct API:', url1);
+            
+            const response = await fetch(url1);
+            console.log('📊 Direct API response status:', response.status);
+            
             const data = await response.json();
-            console.log('Pump.fun API response:', data);
+            console.log('✅ Direct API response data:', data);
             
             if (data && data.usd_market_cap) {
                 const marketCap = data.usd_market_cap;
+                console.log('💰 Market cap found (Method 1):', marketCap);
                 marketCapElement.textContent = formatMarketCap(marketCap);
                 return;
+            } else {
+                console.log('⚠️ No usd_market_cap in Method 1 response');
             }
         } catch (e) {
-            console.log('Pump.fun API failed, trying alternative...');
+            console.error('❌ Method 1 failed:', e.message);
+            console.log('🔄 Trying alternative method...');
         }
         
         // Method 2: Try pump.fun trading endpoint
         try {
-            const response = await fetch(`https://pump.fun/api/coins/${CONFIG.TOKEN_MINT}`);
+            const url2 = `https://pump.fun/api/coins/${CONFIG.TOKEN_MINT}`;
+            console.log('📡 Method 2 - Trading API:', url2);
+            
+            const response = await fetch(url2);
+            console.log('📊 Trading API response status:', response.status);
+            
             const data = await response.json();
-            console.log('Pump.fun trading API response:', data);
+            console.log('✅ Trading API response data:', data);
             
             if (data && data.market_cap) {
+                console.log('💰 Market cap found (Method 2):', data.market_cap);
                 marketCapElement.textContent = formatMarketCap(data.market_cap);
                 return;
+            } else {
+                console.log('⚠️ No market_cap in Method 2 response');
             }
         } catch (e) {
-            console.log('Trading API also failed');
+            console.error('❌ Method 2 failed:', e.message);
         }
         
         // Fallback: Show bonding phase
+        console.log('📊 All methods failed, showing bonding phase');
         marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
         
     } catch (error) {
-        console.error('Error fetching market cap:', error);
+        console.error('❌ Fatal error in fetchPumpFunMarketCap:', error);
         const marketCapElement = document.getElementById('marketCapValue');
         if (marketCapElement) {
             marketCapElement.innerHTML = '<span class="market-cap-loading">🚀 Bonding</span>';
@@ -244,28 +301,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ Dashboard loaded successfully');
 });
 
+// UPDATE STATS DISPLAY
+function updateStats(stats) {
+    try {
+        console.log('Updating stats display:', stats);
+        
+        // Total Burned
+        const totalBurnedEl = document.getElementById('totalBurned');
+        if (totalBurnedEl) {
+            totalBurnedEl.textContent = formatNumber(stats.totalTokensBurned);
+        }
+        
+        // Burned Percent
+        const burnedPercentEl = document.getElementById('burnedPercent');
+        if (burnedPercentEl && CONFIG.TOTAL_SUPPLY) {
+            const percent = (Number(stats.totalTokensBurned) / CONFIG.TOTAL_SUPPLY) * 100;
+            burnedPercentEl.textContent = percent.toFixed(2);
+        }
+        
+        // Value Burned (SOL)
+        const valueBurnedEl = document.getElementById('valueBurned');
+        if (valueBurnedEl) {
+            valueBurnedEl.textContent = stats.totalBuybackSpent.toFixed(4);
+        }
+        
+        // Additional stats if you have them
+        const totalClaimsEl = document.getElementById('totalClaims');
+        if (totalClaimsEl) {
+            totalClaimsEl.textContent = stats.totalClaims || 0;
+        }
+        
+        const systemStatusEl = document.getElementById('systemStatus');
+        if (systemStatusEl) {
+            systemStatusEl.textContent = stats.systemStatus || 'active';
+        }
+        
+    } catch (error) {
+        console.error('Error updating stats:', error);
+    }
+}
+
 // DATA FETCHING
 async function fetchAndUpdateAllData() {
     try {
         console.log('Fetching data from backend...');
         const response = await fetch(`${CONFIG.API_BASE}/api/stats/dashboard`);
-        if (!response.ok) throw new Error(`API returned ${response.status}`);
         const data = await response.json();
-        if (!data.success) throw new Error(data.error || 'Unknown error');
         console.log('Data received:', data);
-        updateMetrics(data.data.stats, data.data.recentTransactions);
-        update24HourStats(data.data.recentTransactions);
+
+        updateStats(data.data.stats);
         updateChart(data.data.burnChartData);
         updateBurnsFeed(data.data.recentTransactions);
-        updateShareText(data.data.stats, data.data.recentTransactions);
-        updateMarketCap(data.data); // ✅ ADD THIS LINE - uses data already fetched
+        
+        console.log('🔥🔥🔥 ABOUT TO CALL updateMarketCap 🔥🔥🔥');
+        updateMarketCap(data.data);
+        console.log('🔥🔥🔥 FINISHED CALLING updateMarketCap 🔥🔥🔥');
+
     } catch (error) {
-        console.error('Error fetching data:', error);
-        showNotification('Failed to load data. Retrying...', 'error');
-        if (CONFIG.API_BASE.includes('localhost')) {
-            console.log('Using mock data for development...');
-            useMockData();
-        }
+        console.error('Error:', error);
     }
 }
 
@@ -537,32 +630,7 @@ function updateShareText(stats, transactions) {
     }
 }
 
-// SHARE FUNCTIONS
-function copyShareText() {
-    const sharePreview = document.getElementById('sharePreview');
-    const text = sharePreview.textContent.trim();
-    navigator.clipboard.writeText(text);
-    showNotification('Share text copied! 📋');
-}
 
-function shareOnTwitter() {
-    const lastBurn = document.getElementById('shareLastBurn').textContent;
-    const totalBurned = document.getElementById('shareTotalBurned').textContent;
-    
-    // ✅ Updated tweet text with your changes
-    const tweetText = `🔥 Just burned ${lastBurn} $${CONFIG.TOKEN_SYMBOL} tokens!
-
-${totalBurned} tokens permanently destroyed so far.
-
-Watch the supply burn LIVE at autopump-dashboard.vercel.app 🔥
-
-$ABT ${CONFIG.TOKEN_MINT}
-
-#AutoBurnTek #Deflationary #Solana`;
-    
-    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
-    window.open(tweetUrl, '_blank', 'width=550,height=420');
-}
 
 // AUTO REFRESH
 function startAutoRefresh() {
@@ -662,5 +730,3 @@ setInterval(() => {
         }
     });
 }, 60000);
-
-console.log('🔥 Auto Burn Tek Dashboard Ready!');

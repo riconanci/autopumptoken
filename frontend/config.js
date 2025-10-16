@@ -3,19 +3,19 @@
 
 const SITE_CONFIG = {
     // Token Information
-    TOKEN_MINT: '7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
-    TOKEN_SYMBOL: 'ABT',
-    TOKEN_NAME: 'Auto Burn Tek',
+    TOKEN_MINT: '5eDu5oWPgZGoynAxfjfBGU2iNU4X2G7FAucgSa9Apump',
+    TOKEN_SYMBOL: 'ABnB',
+    TOKEN_NAME: 'Auto Buy n Burn',
     TOTAL_SUPPLY: 1000000000,
     
     // API Configuration
-    API_BASE: 'https://autopump-backend-v2-deyum8cnu-riconancis-projects.vercel.app', // Will be https://yoursite.vercel.app/api
+    API_BASE: 'https://autopump-backend-v2-nin6onggy-riconancis-projects.vercel.app', // Will be https://yoursite.vercel.app/api
     REFRESH_INTERVAL: 30000, // 30 seconds
     
     // Social Links (EDIT THESE!)
     LINKS: {
-        PUMP_FUN: 'https://pump.fun/coin/7Zyhj43gwm8RwZmuymzggCcqHxPVQicvqj2jgcNpump',
-        TWITTER: 'https://x.com/AutoBurnTek',  // ← CHANGES X
+        PUMP_FUN: 'https://pump.fun/coin/5eDu5oWPgZGoynAxfjfBGU2iNU4X2G7FAucgSa9Apump',
+        TWITTER: 'https://x.com/AutoBuynBurn',  // ← CHANGES X
     //    WEBSITE: 'https://autopumptoken.vercel.app',              // ← OPTIONAL: Add your site
     //    TELEGRAM: 'https://t.me/YourTelegramGroup'       // ← OPTIONAL: Add your TG
     },
